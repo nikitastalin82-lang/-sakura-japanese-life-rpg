@@ -25,8 +25,11 @@ for(let i=0;i<24;i++){const x=(i%6)*9-23,z=Math.floor(i/6)*13-19;tree(x,z)}
 // Player placeholder: capsule-like body with head and school backpack.
 const player=new THREE.Group();const body=new THREE.Mesh(new THREE.CapsuleGeometry(.38,.8,4,8),mat(0x263d55));body.position.y=.8;player.add(body);const head=new THREE.Mesh(new THREE.SphereGeometry(.28,16,12),mat(0xf0c9a9));head.position.y=1.55;player.add(head);const bag=new THREE.Mesh(new THREE.BoxGeometry(.42,.5,.2),mat(0x9c5368));bag.position.set(0,.9,.36);player.add(bag);player.position.set(0,0,4);scene.add(player);
 const keys=new Set<string>();
-addEventListener('keydown',e=>{keys.add(e.key.toLowerCase());if(e.key.toLowerCase()==='c')toggleCamera();if(e.key.toLowerCase()==='e')interact()});
-addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
+// Use physical key positions (KeyboardEvent.code), so movement also works with a Russian or other keyboard layout.
+const keyName=(e:KeyboardEvent)=>({KeyW:'w',KeyA:'a',KeyS:'s',KeyD:'d',KeyE:'e',KeyC:'c',ArrowUp:'arrowup',ArrowDown:'arrowdown',ArrowLeft:'arrowleft',ArrowRight:'arrowright'} as Record<string,string>)[e.code] ?? e.key.toLowerCase();
+addEventListener('keydown',e=>{const key=keyName(e);if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(key))e.preventDefault();if(!keys.has(key)){keys.add(key);if(key==='c')toggleCamera();if(key==='e')interact()}});
+addEventListener('keyup',e=>keys.delete(keyName(e)));
+addEventListener('blur',()=>keys.clear());
 let joyX=0,joyY=0,joyPointer:number|null=null;
 const joystick=document.getElementById('joystick')!,stick=document.getElementById('stick')!;
 function updateJoystick(e:PointerEvent){const r=joystick.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let x=e.clientX-cx,y=e.clientY-cy;const max=r.width*.34,len=Math.hypot(x,y);if(len>max){x=x/len*max;y=y/len*max}joyX=x/max;joyY=y/max;stick.style.transform=`translate(${x}px,${y}px)`}
