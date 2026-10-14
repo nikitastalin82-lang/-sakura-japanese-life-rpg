@@ -4,3 +4,6 @@
 @media(min-width:901px){.controls{display:flex;inset:auto 28px 24px}.joystick-zone{width:164px;height:164px}.joystick{width:138px;height:138px}.stick{width:58px;height:58px}.btn{padding:16px 20px;font-size:13px}.actions{gap:12px}}
 /* Desktop: keyboard and mouse only; keep touch controls for touch-first devices. */
 @media (hover: hover) and (pointer: fine){.controls{display:none!important}.hint{bottom:18px}}
+
+/* Hide the desktop cursor only while the game has captured mouse input. */
+body.pointer-locked,body.pointer-locked *{cursor:none!important}
