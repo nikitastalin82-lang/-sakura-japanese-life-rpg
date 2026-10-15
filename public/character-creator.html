@@ -61,7 +61,7 @@ const renderer=new THREE.WebGLRenderer({canvas,antialias:true,preserveDrawingBuf
 const controls=new OrbitControls(camera,canvas);controls.target.set(0,1.75,0);controls.enableDamping=true;controls.minDistance=3.7;controls.maxDistance=10;
 scene.add(new THREE.HemisphereLight(0xe8f0ff,0x514a45,2));const key=new THREE.DirectionalLight(0xffeadb,3);key.position.set(4,7,5);scene.add(key);const rim=new THREE.DirectionalLight(0xb6c9ff,2);rim.position.set(-4,4,-4);scene.add(rim);
 const floor=new THREE.Mesh(new THREE.CircleGeometry(2.5,64),new THREE.MeshStandardMaterial({color:0x33414a,roughness:.95}));floor.rotation.x=-Math.PI/2;floor.position.y=-.035;scene.add(floor);
-const root=new THREE.Group();scene.add(root),parts={};
+const root=new THREE.Group();scene.add(root);const parts={};
 const mats={skin:new THREE.MeshStandardMaterial({color:'#e9bd9e',roughness:.72}),hair:new THREE.MeshStandardMaterial({color:'#171820',roughness:.82}),robe:new THREE.MeshStandardMaterial({color:'#343d4b',roughness:.9}),obi:new THREE.MeshStandardMaterial({color:'#17191e',roughness:.88}),sandal:new THREE.MeshStandardMaterial({color:'#795333',roughness:.85}),eye:new THREE.MeshStandardMaterial({color:'#29211d',roughness:.55}),white:new THREE.MeshStandardMaterial({color:'#f4eee8',roughness:.8})};
 function mesh(name,geo,material,pos,scale,rot){const o=new THREE.Mesh(geo,material);o.name=name;o.position.set(...pos);if(scale)o.scale.set(...scale);if(rot)o.rotation.set(...rot);root.add(o);parts[name]=o;return o}
 function ell(name,pos,scale,material){return mesh(name,new THREE.SphereGeometry(1,28,20),material,pos,scale)}
