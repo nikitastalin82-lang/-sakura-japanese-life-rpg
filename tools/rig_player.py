@@ -111,6 +111,7 @@ arm.select_set(True)
 bpy.context.view_layer.objects.active = arm
 
 # Build four named animation clips on the real skeleton.
+# NumPy is provided by Ubuntu's python3-numpy package to match Blender's Python ABI.
 arm.animation_data_create()
 pose_bones = arm.pose.bones
 for pb in pose_bones:
