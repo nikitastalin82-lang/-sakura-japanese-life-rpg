@@ -70,7 +70,7 @@ for material in materials:
 # Assign broad clothing/body regions. The mesh remains one continuous mesh.
 for polygon in mesh.data.polygons:
     centroid = sum((mesh.data.vertices[index].co for index in polygon.vertices), Vector()) / len(polygon.vertices)
-    z = (centroid.z - minv.z) / max(height, 1e-8)
+    z = (centroid.z - minv.z) / max(maxv.z - minv.z, 1e-8)
     side = abs(centroid.x - center.x) / max(height, 1e-8)
     if z < 0.065:
         polygon.material_index = 4  # shoes
