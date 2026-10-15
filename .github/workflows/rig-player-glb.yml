@@ -1,0 +1,38 @@
+name: Rig original player GLB
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "20261015073811_7513e2ed.glb"
+      - "tools/rig_player.py"
+      - ".github/workflows/rig-player-glb.yml"
+permissions:
+  contents: write
+  actions: write
+jobs:
+  rig:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Blender
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y blender
+      - name: Rig original model and export GLB
+        env:
+          INPUT_GLB: 20261015073811_7513e2ed.glb
+          OUTPUT_GLB: public/models/player-rigged.glb
+        run: blender -b --python tools/rig_player.py
+      - name: Commit rigged model
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/models/player-rigged.glb
+          git commit -m "Add rigged original player model" || echo "No changes to commit"
+          git push
+      - name: Upload rigged model artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rigged-player-glb
+          path: public/models/player-rigged.glb
+          retention-days: 14
