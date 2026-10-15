@@ -1,0 +1,31 @@
+name: Export original GLB for assistant inspection
+
+on:
+  push:
+    paths:
+      - '20261015073811_7513e2ed.glb'
+      - '.github/workflows/export-model-artifact.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  package-model:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Verify original GLB
+        run: |
+          test -s 20261015073811_7513e2ed.glb
+          file 20261015073811_7513e2ed.glb
+          sha256sum 20261015073811_7513e2ed.glb
+      - name: Upload original GLB as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: original-player-glb
+          path: 20261015073811_7513e2ed.glb
+          if-no-files-found: error
+          retention-days: 7
