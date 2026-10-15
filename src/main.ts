@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import './style.css';
+import { createCharacter } from './character';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML = `
@@ -22,8 +23,11 @@ function building(x:number,z:number,w:number,d:number,h:number,color:number,labe
 building(-13, -13,10,9,7,0xe8d7c5,'ШКОЛА');building(15,-12,8,8,5,0xf1d9b9,'КОНБИНИ');building(-15,15,8,8,5,0xd8c6b9,'ДОМ');building(15,16,10,8,6,0xd8e1df,'СТАНЦИЯ');
 function tree(x:number,z:number){const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.18,.25,2,7),mat(0x75513b));trunk.position.set(x,1,z);scene.add(trunk);const crown=new THREE.Mesh(new THREE.IcosahedronGeometry(1.5,1),mat(0xf0a9bd));crown.position.set(x,3,z);crown.castShadow=true;scene.add(crown)}
 for(let i=0;i<24;i++){const x=(i%6)*9-23,z=Math.floor(i/6)*13-19;tree(x,z)}
-// Player placeholder: capsule-like body with head and school backpack.
-const player=new THREE.Group();const body=new THREE.Mesh(new THREE.CapsuleGeometry(.38,.8,4,8),mat(0x263d55));body.position.y=.8;player.add(body);const head=new THREE.Mesh(new THREE.SphereGeometry(.28,16,12),mat(0xf0c9a9));head.position.y=1.55;player.add(head);const bag=new THREE.Mesh(new THREE.BoxGeometry(.42,.5,.2),mat(0x9c5368));bag.position.set(0,.9,.36);player.add(bag);player.position.set(0,0,4);scene.add(player);
+// Articulated school-uniform character with independent limbs and a walk cycle.
+const character = createCharacter();
+const player = character.root;
+player.position.set(0,0,4);
+scene.add(player);
 const keys=new Set<string>();
 // Minecraft-style desktop mouse look: pointer lock hides the system cursor while playing.
 const isDesktop=()=>matchMedia('(hover: hover) and (pointer: fine)').matches;
@@ -49,7 +53,7 @@ const places=[{name:'Школа',x:-13,z:-13,desc:'Школа открыта. У
 function interact(){const p=places.find(v=>Math.hypot(player.position.x-v.x,player.position.z-v.z)<6);const el=document.getElementById('interaction')!;el.textContent=p?p.desc:'Рядом нет места для взаимодействия.';el.style.display='block';setTimeout(()=>el.style.display='none',2600)}
 const saved=localStorage.getItem('sakura-position');if(saved){try{const p=JSON.parse(saved);player.position.set(p.x,0,p.z)}catch{}}
 let last=performance.now(),gameMinutes=480;const target=new THREE.Vector3();
-function animate(now:number){requestAnimationFrame(animate);const dt=Math.min((now-last)/1000,.05);last=now;let dx=joyX,dz=joyY;if(keys.has('w')||keys.has('arrowup'))dz+=1;if(keys.has('s')||keys.has('arrowdown'))dz-=1;if(keys.has('a')||keys.has('arrowleft'))dx+=1;if(keys.has('d')||keys.has('arrowright'))dx-=1;const moving=Math.abs(dx)+Math.abs(dz)>.08;if(moving){const l=Math.hypot(dx,dz);if(l>1){dx/=l;dz/=l;}const moveSpeed=5*Math.min(1,Math.hypot(dx,dz));const worldX=dx*Math.cos(viewYaw)+dz*Math.sin(viewYaw),worldZ=-dx*Math.sin(viewYaw)+dz*Math.cos(viewYaw);player.position.x+=worldX*moveSpeed*dt;player.position.z+=worldZ*moveSpeed*dt;player.rotation.y=Math.atan2(worldX,worldZ);player.position.x=THREE.MathUtils.clamp(player.position.x,-43,43);player.position.z=THREE.MathUtils.clamp(player.position.z,-43,43)}
+function animate(now:number){requestAnimationFrame(animate);const dt=Math.min((now-last)/1000,.05);last=now;let dx=joyX,dz=joyY;if(keys.has('w')||keys.has('arrowup'))dz+=1;if(keys.has('s')||keys.has('arrowdown'))dz-=1;if(keys.has('a')||keys.has('arrowleft'))dx+=1;if(keys.has('d')||keys.has('arrowright'))dx-=1;const moving=Math.abs(dx)+Math.abs(dz)>.08;character.update(dt,moving,now/1000);if(moving){const l=Math.hypot(dx,dz);if(l>1){dx/=l;dz/=l;}const moveSpeed=5*Math.min(1,Math.hypot(dx,dz));const worldX=dx*Math.cos(viewYaw)+dz*Math.sin(viewYaw),worldZ=-dx*Math.sin(viewYaw)+dz*Math.cos(viewYaw);player.position.x+=worldX*moveSpeed*dt;player.position.z+=worldZ*moveSpeed*dt;player.rotation.y=Math.atan2(worldX,worldZ);player.position.x=THREE.MathUtils.clamp(player.position.x,-43,43);player.position.z=THREE.MathUtils.clamp(player.position.z,-43,43)}
 gameMinutes+=dt*1.5;const hh=String(Math.floor(gameMinutes/60)%24).padStart(2,'0'),mm=String(Math.floor(gameMinutes%60)).padStart(2,'0');document.getElementById('clock')!.textContent=hh+':'+mm;
 if(firstPerson){camera.position.set(player.position.x,player.position.y+1.65,player.position.z);target.set(player.position.x+Math.sin(viewYaw)*Math.cos(viewPitch),1.65+Math.sin(viewPitch),player.position.z+Math.cos(viewYaw)*Math.cos(viewPitch))}else{const distance=8.5,horizontal=distance*Math.cos(viewPitch);const offset=new THREE.Vector3(-Math.sin(viewYaw)*horizontal,2.2+distance*Math.sin(viewPitch),-Math.cos(viewYaw)*horizontal);camera.position.lerp(new THREE.Vector3(player.position.x+offset.x,player.position.y+offset.y,player.position.z+offset.z),.16);target.set(player.position.x,1.15,player.position.z)}
 camera.lookAt(target);renderer.render(scene,camera);if(Math.floor(now/3000)!==Math.floor((now-dt*1000)/3000))localStorage.setItem('sakura-position',JSON.stringify({x:player.position.x,z:player.position.z}))}
