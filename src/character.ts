@@ -63,19 +63,17 @@ export function createCharacter(): SakuraCharacter {
     leg.name = side < 0 ? 'Left_Thigh' : 'Right_Thigh';
     hips.add(leg);
     const thigh = capsule(0.105, 0.31, trousers, leg, 'Thigh');
-    thigh.rotation.x = Math.PI / 2;
     thigh.position.y = -0.2;
     const knee = new THREE.Group();
     knee.position.y = -0.43;
     knee.name = side < 0 ? 'Left_Knee' : 'Right_Knee';
     leg.add(knee);
     const shin = capsule(0.085, 0.34, trousers, knee, 'Shin');
-    shin.rotation.x = Math.PI / 2;
     shin.position.y = -0.2;
     const shoe = box(0.19, 0.12, 0.31, shoes, knee, 'School_Shoe');
-    shoe.position.set(0, -0.42, 0.075);
+    shoe.position.set(0, -0.30, 0.075);
     const sole = box(0.195, 0.035, 0.315, gold, knee, 'Shoe_Sole');
-    sole.position.set(0, -0.48, 0.075);
+    sole.position.set(0, -0.365, 0.075);
     legs.push(leg);
     shins.push(knee);
   }
@@ -114,14 +112,12 @@ export function createCharacter(): SakuraCharacter {
     arm.name = side < 0 ? 'Left_Shoulder' : 'Right_Shoulder';
     torso.add(arm);
     const upper = capsule(0.09, 0.27, navy, arm, 'Upper_Arm');
-    upper.rotation.x = Math.PI / 2;
     upper.position.y = -0.16;
     const elbow = new THREE.Group();
     elbow.position.y = -0.34;
     elbow.name = side < 0 ? 'Left_Elbow' : 'Right_Elbow';
     arm.add(elbow);
     const lower = capsule(0.075, 0.25, navyLight, elbow, 'Forearm');
-    lower.rotation.x = Math.PI / 2;
     lower.position.y = -0.15;
     const cuff = makeMesh(new THREE.CylinderGeometry(0.076, 0.076, 0.055, 10), shirt, elbow, 'Cuff');
     cuff.position.y = -0.31;
@@ -154,12 +150,12 @@ export function createCharacter(): SakuraCharacter {
   backHair.position.set(0, -0.035, -0.13);
   for (const side of [-1, 1]) {
     const eyeMesh = makeMesh(new THREE.SphereGeometry(0.027, 10, 8), eye, head, 'Eye');
-    eyeMesh.position.set(side * 0.085, 0.005, 0.213);
+    eyeMesh.position.set(side * 0.085, 0.005, 0.238);
     const highlight = makeMesh(new THREE.SphereGeometry(0.008, 8, 6), shirt, head, 'Eye_Highlight');
-    highlight.position.set(side * 0.085 - 0.006, 0.015, 0.236);
+    highlight.position.set(side * 0.085 - 0.006, 0.015, 0.258);
   }
   const mouth = makeMesh(new THREE.BoxGeometry(0.055, 0.009, 0.008), burgundy, head, 'Mouth');
-  mouth.position.set(0, -0.09, 0.218);
+  mouth.position.set(0, -0.09, 0.246);
 
   root.traverse((obj) => {
     if (obj instanceof THREE.Mesh) {
