@@ -47,7 +47,11 @@ jobs:
           git add public/models/player-rigged.glb
           if ! git diff --cached --quiet; then
             git commit -m "Add rigged player model"
-            git push
+            # Other source edits may land on main while Blender is running.
+            # Rebase the generated binary commit onto the newest main before pushing.
+            git fetch origin main
+            git rebase origin/main
+            git push origin HEAD:main
           else
             echo "Rigged model is already up to date"
           fi
