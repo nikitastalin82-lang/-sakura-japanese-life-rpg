@@ -47,15 +47,16 @@ center = (minv + maxv) * 0.5
 height = maxv.z - minv.z
 if height <= 0: raise RuntimeError("Character has no vertical height on Blender Z axis")
 
-# The source GLB has no materials or textures. Give the original mesh a
-# restrained Sakura-style palette using polygon height and lateral position.
-# This changes appearance only; the source geometry remains untouched.
+# The source GLB has no materials or textures. Rebuild a restrained,
+# reference-matched palette from the actual body regions rather than coloring
+# the upper/lower halves as generic shirt and trousers.
 palette = [
-    ("Skin_Warm", (0.78, 0.48, 0.34, 1.0)),
-    ("Hair_Dark", (0.075, 0.045, 0.04, 1.0)),
-    ("Sakura_Top", (0.82, 0.39, 0.53, 1.0)),
-    ("Navy_Trousers", (0.12, 0.17, 0.27, 1.0)),
-    ("Shoes", (0.16, 0.105, 0.075, 1.0)),
+    ("Skin_Peach", (0.78, 0.57, 0.45, 1.0)),
+    ("Hair_Charcoal", (0.025, 0.030, 0.040, 1.0)),
+    ("Kimono_Charcoal_Navy", (0.075, 0.105, 0.145, 1.0)),
+    ("Kimono_Shadow", (0.045, 0.065, 0.095, 1.0)),
+    ("Obi_Deep_Charcoal", (0.025, 0.030, 0.038, 1.0)),
+    ("Geta_Wood", (0.24, 0.13, 0.075, 1.0)),
 ]
 materials = []
 for name, color in palette:
@@ -65,30 +66,38 @@ for name, color in palette:
     principled = material.node_tree.nodes.get("Principled BSDF")
     if principled:
         principled.inputs["Base Color"].default_value = color
-        principled.inputs["Roughness"].default_value = 0.82
+        principled.inputs["Roughness"].default_value = 0.88
     materials.append(material)
 mesh.data.materials.clear()
 for material in materials:
     mesh.data.materials.append(material)
 
-# Assign broad clothing/body regions. The mesh remains one continuous mesh.
+# Coordinate-based face assignment preserves the original single-piece GLB.
+# Blender Z is vertical. The face is on the negative-Y/front side of the head.
+front_sign = -1.0
 for polygon in mesh.data.polygons:
     centroid = sum((mesh.data.vertices[index].co for index in polygon.vertices), Vector()) / len(polygon.vertices)
-    z = (centroid.z - minv.z) / max(maxv.z - minv.z, 1e-8)
-    side = abs(centroid.x - center.x) / max(height, 1e-8)
+    x = abs(centroid.x - center.x) / height
+    y = (centroid.y - center.y) / height
+    z = (centroid.z - minv.z) / height
+
     if z < 0.065:
-        polygon.material_index = 4  # shoes
-    elif z < 0.47:
-        polygon.material_index = 3  # trousers
-    elif z < 0.80:
-        # Exposed hands are skin; the rest of the arms and torso use the top.
-        polygon.material_index = 0 if (z < 0.42 and side > 0.13) else 2
-    elif z < 0.865:
-        polygon.material_index = 0  # neck
-    elif z > 0.965:
-        polygon.material_index = 1  # hair cap
+        polygon.material_index = 5  # brown wooden geta
+    elif z > 0.955:
+        polygon.material_index = 1  # dark hair crown
+    elif 0.865 <= z <= 0.955:
+        # Keep the visible face skin-toned; the back and sides remain hair.
+        polygon.material_index = 0 if front_sign * y > 0.012 else 1
+    elif 0.785 <= z < 0.865 and x < 0.075:
+        polygon.material_index = 0  # exposed neck
+    elif 0.285 <= z < 0.415 and x > 0.145:
+        polygon.material_index = 0  # hands, not sleeves
+    elif 0.415 <= z <= 0.505 and x < 0.145 and abs(y) < 0.115:
+        polygon.material_index = 4  # dark obi around the waist
     else:
-        polygon.material_index = 0  # face
+        # Kimono covers the torso, wide sleeves and long lower robe.
+        # A restrained secondary shade adds depth without inventing trousers.
+        polygon.material_index = 3 if (polygon.normal.z < -0.35 or (x > 0.16 and z > 0.55)) else 2
 
 # Build a humanoid skeleton proportioned to the original model's measured bounds.
 # x = character left/right, y = front/back, z = vertical.
