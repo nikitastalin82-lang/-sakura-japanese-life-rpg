@@ -43,6 +43,10 @@ minv = Vector((min(v.x for v in coords), min(v.y for v in coords), min(v.z for v
 maxv = Vector((max(v.x for v in coords), max(v.y for v in coords), max(v.z for v in coords)))
 center = (minv + maxv) * 0.5
 
+# Establish dimensions before any region/rig calculations.
+height = maxv.z - minv.z
+if height <= 0: raise RuntimeError("Character has no vertical height on Blender Z axis")
+
 # The source GLB has no materials or textures. Give the original mesh a
 # restrained Sakura-style palette using polygon height and lateral position.
 # This changes appearance only; the source geometry remains untouched.
@@ -85,11 +89,6 @@ for polygon in mesh.data.polygons:
         polygon.material_index = 1  # hair cap
     else:
         polygon.material_index = 0  # face
-
-# Blender uses Z-up internally. The glTF importer converts the original Y-up
-# character into Blender coordinates, so the character's vertical axis here is Z.
-height = maxv.z - minv.z
-if height <= 0: raise RuntimeError("Character has no vertical height on Blender Z axis")
 
 # Build a humanoid skeleton proportioned to the original model's measured bounds.
 # x = character left/right, y = front/back, z = vertical.
