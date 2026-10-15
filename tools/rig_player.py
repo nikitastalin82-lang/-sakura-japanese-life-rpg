@@ -1,5 +1,16 @@
-import bpy, math, os
+import bpy, math, os, sys, subprocess
 from mathutils import Vector
+
+# Blender's bundled Python may not include NumPy, which the glTF importer requires.
+try:
+    import numpy  # noqa: F401
+except ImportError:
+    blender_python = bpy.app.binary_path_python
+    if not blender_python or not os.path.exists(blender_python):
+        raise RuntimeError("Blender's Python executable was not found; cannot install NumPy")
+    subprocess.check_call([blender_python, "-m", "ensurepip", "--upgrade"])
+    subprocess.check_call([blender_python, "-m", "pip", "install", "--disable-pip-version-check", "numpy==1.26.4"])
+    import numpy  # noqa: F401
 
 src = os.environ.get("INPUT_GLB", "20261015073811_7513e2ed.glb")
 out = os.environ.get("OUTPUT_GLB", "public/models/player-rigged.glb")
@@ -7,7 +18,11 @@ os.makedirs(os.path.dirname(out), exist_ok=True)
 
 bpy.ops.object.select_all(action="SELECT")
 bpy.ops.object.delete(use_global=False)
-bpy.ops.import_scene.gltf(filepath=src)
+try:
+    bpy.ops.import_scene.gltf(filepath=src)
+except BaseException as exc:
+    print("GLB_IMPORT_FAILED:", repr(exc), flush=True)
+    os._exit(1)
 
 meshes = [o for o in bpy.context.scene.objects if o.type == "MESH"]
 if not meshes:
@@ -105,5 +120,9 @@ bpy.context.view_layer.objects.active = arm
 bpy.ops.export_scene.gltf(filepath=out, export_format="GLB", use_selection=False,
                           export_skins=True, export_animations=False,
                           export_apply=False, export_yup=True)
-print("RIGGED_EXPORT", out, os.path.getsize(out))
-print("MESH_VERTICES", len(mesh.data.vertices), "BONES", len(arm_data.bones))
+if not os.path.isfile(out) or os.path.getsize(out) < 1024:
+    raise RuntimeError("Rigged GLB export is missing or unexpectedly small")
+if not any(obj.type == "ARMATURE" for obj in bpy.context.scene.objects):
+    raise RuntimeError("Export validation failed: no armature in scene")
+print("RIGGED_EXPORT_OK", out, os.path.getsize(out), flush=True)
+print("MESH_VERTICES", len(mesh.data.vertices), "BONES", len(arm_data.bones), flush=True)
