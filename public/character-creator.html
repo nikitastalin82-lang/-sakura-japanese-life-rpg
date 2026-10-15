@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ru">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Sakura Character Studio</title>
 <style>
 :root{color-scheme:dark;--bg:#10171d;--panel:#19242c;--line:#2b3a44;--pink:#f29ab5;--muted:#9aabb5}
@@ -14,13 +14,14 @@ h1{font-size:22px;margin:0 0 7px}p{color:var(--muted);line-height:1.5;margin:0 0
 .group{padding:17px 0;border-top:1px solid var(--line)}h3{font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#b9c6cc;margin:0 0 13px}
 .field{display:flex;justify-content:space-between;align-items:center;margin:12px 0;color:#e6ebee}.field output{color:var(--pink);font-variant-numeric:tabular-nums}
 input[type=range]{width:100%;accent-color:var(--pink)}input[type=color]{width:42px;height:30px;padding:2px;border:1px solid var(--line);background:transparent;border-radius:7px}
-.colors{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.swatch{width:27px;height:27px;border:2px solid #ffffff30;border-radius:50%;cursor:pointer}.swatch:focus{outline:2px solid white}
+.colors{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.swatch{width:27px;height:27px;border:2px solid #ffffff30;border-radius:50%;cursor:pointer}
 select,input[type=text]{background:#10191f;color:white;border:1px solid var(--line);border-radius:8px;padding:10px;width:100%}
-.stage{position:relative;min-height:650px;background:radial-gradient(ellipse at 50% 42%,#31424c 0,#1b2932 42%,#111a20 78%);overflow:hidden}
-#view{position:absolute;inset:0;width:100%;height:100%}.hint{position:absolute;bottom:18px;left:0;right:0;text-align:center;color:#aab8bf;font-size:12px;pointer-events:none}
-.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px}.btn{border:0;border-radius:9px;padding:12px 14px;font-weight:700;cursor:pointer;background:var(--pink);color:#24131a}.btn.secondary{background:#293943;color:#f1f4f5;border:1px solid #40515c}.btn:active{transform:translateY(1px)}
+.stage{position:relative;min-height:650px;background:radial-gradient(ellipse at 50% 42%,#46535c 0,#26343c 42%,#111a20 78%);overflow:hidden}
+#view{position:absolute;inset:0;width:100%;height:100%}.hint{position:absolute;bottom:18px;left:0;right:0;text-align:center;color:#d1d9dd;font-size:12px;pointer-events:none}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px}.btn{border:0;border-radius:9px;padding:12px 14px;font-weight:700;cursor:pointer;background:var(--pink);color:#24131a}.btn.secondary{background:#293943;color:#f1f4f5;border:1px solid #40515c}
 .status{font-size:12px;color:#9aabb5;margin-top:12px;min-height:18px}
-@media(max-width:760px){main{grid-template-columns:1fr}.stage{min-height:54vh;grid-row:1}aside{border-right:0}.hint{bottom:9px}}
+.reference{display:flex;gap:12px;align-items:center;font-size:12px;color:var(--muted);line-height:1.4}.reference img{width:55px;height:82px;object-fit:cover;object-position:top;border-radius:7px;border:1px solid #52616b}
+@media(max-width:760px){main{grid-template-columns:1fr}.stage{min-height:55vh;grid-row:1;min-height:520px}aside{border-right:0}.hint{bottom:9px}}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 </head>
@@ -28,68 +29,102 @@ select,input[type=text]{background:#10191f;color:white;border:1px solid var(--li
 <header><a class="logo" href="./">SAKURA <span>STUDIO</span></a><span style="color:#9aabb5;font-size:12px">3D CHARACTER CREATOR</span></header>
 <main>
 <aside>
-<h1>Создание персонажа</h1><p>Настрой внешность и одежду. Персонаж сразу меняется в 3D-просмотре.</p>
+<h1>Создание персонажа</h1><p>Персонаж по твоему референсу: тёмное кимоно, пояс оби, растрёпанные чёрные волосы и гэта.</p>
+<div class="reference"><img src="https://raw.githubusercontent.com/nikitastalin82-lang/-sakura-japanese-life-rpg/main/Meshy_AI_image_6546f283-4d5d-432c-9341-f52cfea88378_0.png" alt="Оригинальный референс"><span>Оригинал, по которому собрана базовая внешность</span></div>
 <div class="group"><h3>Внешность</h3>
-<div class="field"><label for="skin">Тон кожи</label></div><div class="colors" id="skins"></div>
-<div class="field"><label for="hair">Цвет волос</label><input id="hair" type="color" value="#20202a"></div>
-<div class="field"><label for="hairStyle">Причёска</label></div><select id="hairStyle"><option value="short">Короткие</option><option value="long">Длинные</option><option value="spiky">Взъерошенные</option></select>
-<div class="field"><label for="eyes">Цвет глаз</label><input id="eyes" type="color" value="#49352b"></div>
+<div class="field"><label>Тон кожи</label></div><div class="colors" id="skins"></div>
+<div class="field"><label for="hair">Цвет волос</label><input id="hair" type="color" value="#171820"></div>
+<div class="field"><label for="hairStyle">Причёска</label></div><select id="hairStyle"><option value="messy">Растрёпанная (как на референсе)</option><option value="neat">Аккуратная</option><option value="long">Удлинённая</option></select>
+<div class="field"><label for="eyes">Цвет глаз</label><input id="eyes" type="color" value="#29211d"></div>
 </div>
-<div class="group"><h3>Одежда</h3>
-<div class="field"><label for="top">Верх</label><input id="top" type="color" value="#e8e8ed"></div>
-<div class="field"><label for="bottom">Брюки</label><input id="bottom" type="color" value="#263b59"></div>
-<div class="field"><label for="shoes">Обувь</label><input id="shoes" type="color" value="#24272d"></div>
+<div class="group"><h3>Кимоно и пояс</h3>
+<div class="field"><label for="robe">Цвет кимоно</label><input id="robe" type="color" value="#343d4b"></div>
+<div class="field"><label for="obi">Цвет пояса оби</label><input id="obi" type="color" value="#17191e"></div>
+<div class="field"><label for="sandal">Цвет гэта</label><input id="sandal" type="color" value="#795333"></div>
 </div>
 <div class="group"><h3>Телосложение</h3>
-<div class="field"><label for="height">Рост</label><output id="heightVal">1.00</output></div><input id="height" type="range" min=".85" max="1.15" step=".01" value="1">
-<div class="field"><label for="build">Комплекция</label><output id="buildVal">1.00</output></div><input id="build" type="range" min=".85" max="1.2" step=".01" value="1">
+<div class="field"><label for="height">Рост</label><output id="heightVal">1.00</output></div><input id="height" type="range" min=".9" max="1.12" step=".01" value="1">
+<div class="field"><label for="build">Комплекция</label><output id="buildVal">1.00</output></div><input id="build" type="range" min=".88" max="1.12" step=".01" value="1">
 </div>
 <div class="group"><h3>Имя персонажа</h3><input id="name" type="text" maxlength="24" placeholder="Например, Хару"></div>
 <div class="actions"><button class="btn" id="save">Сохранить образ</button><button class="btn secondary" id="png">Скачать PNG</button><button class="btn secondary" id="reset">Сбросить</button></div>
 <div class="status" id="status">Загружаю 3D-сцену…</div>
 </aside>
-<section class="stage"><canvas id="view"></canvas><div class="hint">Зажми мышь и двигай, чтобы повернуть персонажа · Колёсико — приблизить</div></section>
+<section class="stage"><canvas id="view"></canvas><div class="hint">Перетаскивай мышью, чтобы вращать · Колёсико — приблизить</div></section>
 </main>
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-const canvas=document.querySelector('#view'), scene=new THREE.Scene();scene.background=null;
-const camera=new THREE.PerspectiveCamera(32,1,.1,100);camera.position.set(4,3.1,7);
-const renderer=new THREE.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputColorSpace=THREE.SRGBColorSpace;
-const controls=new OrbitControls(camera,canvas);controls.target.set(0,1.65,0);controls.enableDamping=true;controls.minDistance=4;controls.maxDistance=10;
-scene.add(new THREE.HemisphereLight(0xe7f1ff,0x59606b,2));const key=new THREE.DirectionalLight(0xffffff,2.6);key.position.set(4,7,5);scene.add(key);const rim=new THREE.DirectionalLight(0xffb5ce,1.4);rim.position.set(-4,4,-4);scene.add(rim);
-const floor=new THREE.Mesh(new THREE.CircleGeometry(2.5,64),new THREE.MeshStandardMaterial({color:0x263640,roughness:.9}));floor.rotation.x=-Math.PI/2;floor.position.y=-.04;scene.add(floor);
-const mat=(c,rough=.78)=>new THREE.MeshStandardMaterial({color:c,roughness:rough});
-const root=new THREE.Group();scene.add(root);const parts={};
-function ball(name,pos,scale,color){const m=new THREE.Mesh(new THREE.SphereGeometry(1,32,24),mat(color));m.position.set(...pos);m.scale.set(...scale);root.add(m);parts[name]=m;return m}
-function limb(name,a,b,r1,r2,color){const d=new THREE.Vector3(...b).sub(new THREE.Vector3(...a));const m=new THREE.Mesh(new THREE.CylinderGeometry(r2,r1,d.length(),20),mat(color));m.position.copy(new THREE.Vector3(...a).add(new THREE.Vector3(...b)).multiplyScalar(.5));m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());root.add(m);parts[name]=m;return m}
-const skin=0xe9bd9e;
-ball('torso',[0,1.48,0],[.39,.56,.22],0xe8e8ed);
-ball('neck',[0,2.06,0],[.13,.17,.13],skin);
-ball('head',[0,2.38,0],[.31,.4,.28],skin);
-ball('earL',[-.31,2.38,0],[.07,.1,.055],skin);ball('earR',[.31,2.38,0],[.07,.1,.055],skin);
-ball('eyeL',[-.115,2.42,.254],[.035,.045,.018],0x49352b);ball('eyeR',[.115,2.42,.254],[.035,.045,.018],0x49352b);
-ball('hairCap',[0,2.67,-.005],[.325,.19,.29],0x20202a);
-for(let i=0;i<5;i++)ball('bang'+i,[-.22+i*.11,2.57,.19],[.09,.19,.09],0x20202a);
-limb('armL',[-.39,1.83,0],[-.52,1.12,.02],.12,.09,skin);limb('armR',[.39,1.83,0],[.52,1.12,.02],.12,.09,skin);
-ball('handL',[-.52,1.04,.02],[.095,.12,.09],skin);ball('handR',[.52,1.04,.02],[.095,.12,.09],skin);
-limb('legL',[-.16,.94,0],[-.18,.2,0],.15,.105,0x263b59);limb('legR',[.16,.94,0],[.18,.2,0],.15,.105,0x263b59);
-ball('shoeL',[-.18,.11,.1],[.14,.11,.25],0x24272d);ball('shoeR',[.18,.11,.1],[.14,.11,.25],0x24272d);
-function recolor(keys,c){keys.forEach(k=>{if(parts[k])parts[k].material.color.set(c)})}
-const skinChoices=['#f4d2b8','#e9bd9e','#c98f6b','#8f5c43','#f0c4a6'];let currentSkin='#e9bd9e';
-document.querySelector('#skins').innerHTML=skinChoices.map((c,i)=>'<button class="swatch" title="Тон кожи" data-color="'+c+'" style="background:'+c+'"></button>').join('');
-document.querySelectorAll('.swatch').forEach(b=>b.onclick=()=>{currentSkin=b.dataset.color;['head','neck','earL','earR','armL','armR','handL','handR'].forEach(k=>parts[k].material.color.set(currentSkin));});
-function setColor(id,keys){document.querySelector('#'+id).addEventListener('input',e=>recolor(keys,e.target.value))}
-setColor('hair',['hairCap','bang0','bang1','bang2','bang3','bang4']);setColor('eyes',['eyeL','eyeR']);setColor('top',['torso']);setColor('bottom',['legL','legR']);setColor('shoes',['shoeL','shoeR']);
-document.querySelector('#hairStyle').onchange=e=>{const v=e.target.value;['bang0','bang1','bang2','bang3','bang4'].forEach((k,i)=>{parts[k].visible=v!=='short'||i===1||i===2||i===3;parts[k].scale.y=v==='spiky'?.25:.19});if(v==='long'){parts.hairCap.scale.set(.34,.22,.3)}else parts.hairCap.scale.set(.325,.19,.29)};
-function updateScale(){const h=+height.value,b=+build.value;root.scale.set(b,h,b);heightVal.textContent=h.toFixed(2);buildVal.textContent=b.toFixed(2)}
-const height=document.querySelector('#height'),build=document.querySelector('#build'),heightVal=document.querySelector('#heightVal'),buildVal=document.querySelector('#buildVal');height.oninput=build.oninput=updateScale;
-const initial={hair:'#20202a',eyes:'#49352b',top:'#e8e8ed',bottom:'#263b59',shoes:'#24272d',height:1,build:1,hairStyle:'short',skin:'#e9bd9e'};
-function save(){const data={name:document.querySelector('#name').value,skin:currentSkin,hair:document.querySelector('#hair').value,eyes:document.querySelector('#eyes').value,top:document.querySelector('#top').value,bottom:document.querySelector('#bottom').value,shoes:document.querySelector('#shoes').value,height:height.value,build:build.value,hairStyle:document.querySelector('#hairStyle').value};localStorage.setItem('sakura-character',JSON.stringify(data));document.querySelector('#status').textContent='Образ сохранён в этом браузере.'}
+const canvas=document.querySelector('#view'),scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(32,1,.1,100);camera.position.set(3.5,2.8,7.6);
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;
+const controls=new OrbitControls(camera,canvas);controls.target.set(0,1.75,0);controls.enableDamping=true;controls.minDistance=3.7;controls.maxDistance=10;
+scene.add(new THREE.HemisphereLight(0xe8f0ff,0x514a45,2));const key=new THREE.DirectionalLight(0xffeadb,3);key.position.set(4,7,5);scene.add(key);const rim=new THREE.DirectionalLight(0xb6c9ff,2);rim.position.set(-4,4,-4);scene.add(rim);
+const floor=new THREE.Mesh(new THREE.CircleGeometry(2.5,64),new THREE.MeshStandardMaterial({color:0x33414a,roughness:.95}));floor.rotation.x=-Math.PI/2;floor.position.y=-.035;scene.add(floor);
+const root=new THREE.Group();scene.add(root),parts={};
+const mats={skin:new THREE.MeshStandardMaterial({color:'#e9bd9e',roughness:.72}),hair:new THREE.MeshStandardMaterial({color:'#171820',roughness:.82}),robe:new THREE.MeshStandardMaterial({color:'#343d4b',roughness:.9}),obi:new THREE.MeshStandardMaterial({color:'#17191e',roughness:.88}),sandal:new THREE.MeshStandardMaterial({color:'#795333',roughness:.85}),eye:new THREE.MeshStandardMaterial({color:'#29211d',roughness:.55}),white:new THREE.MeshStandardMaterial({color:'#f4eee8',roughness:.8})};
+function mesh(name,geo,material,pos,scale,rot){const o=new THREE.Mesh(geo,material);o.name=name;o.position.set(...pos);if(scale)o.scale.set(...scale);if(rot)o.rotation.set(...rot);root.add(o);parts[name]=o;return o}
+function ell(name,pos,scale,material){return mesh(name,new THREE.SphereGeometry(1,28,20),material,pos,scale)}
+function cyl(name,a,b,r1,r2,material,segments=20){const A=new THREE.Vector3(...a),B=new THREE.Vector3(...b),d=B.clone().sub(A),o=mesh(name,new THREE.CylinderGeometry(r2,r1,d.length(),segments),material,A.clone().add(B).multiplyScalar(.5).toArray());o.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());return o}
+function box(name,pos,size,material,rot=[0,0,0]){return mesh(name,new THREE.BoxGeometry(...size),material,pos,[1,1,1],rot)}
+// body and head: elongated anime proportions
+ell('neck',[0,2.48,0],[.115,.19,.12],mats.skin);
+ell('face',[0,2.82,.015],[.255,.355,.235],mats.skin);
+ell('earL',[-.25,2.82,0],[.055,.09,.045],mats.skin);ell('earR',[.25,2.82,0],[.055,.09,.045],mats.skin);
+// jaw/chin, eyes, brows, nose and mouth
+ell('eyeL',[-.092,2.86,.226],[.027,.039,.016],mats.eye);ell('eyeR',[.092,2.86,.226],[.027,.039,.016],mats.eye);
+ell('glintL',[-.099,2.875,.241],[.008,.01,.005],mats.white);ell('glintR',[.085,2.875,.241],[.008,.01,.005],mats.white);
+cyl('browL',[-.135,2.94,.218],[-.055,2.95,.22],.009,.009,mats.hair,8);cyl('browR',[.055,2.95,.22],[.135,2.94,.218],.009,.009,mats.hair,8);
+ell('nose',[0,2.79,.242],[.018,.03,.018],mats.skin);cyl('mouth',[0,2.715,.235],[.045,2.72,.23],.005,.005,mats.hair,8);
+// hair cap, layered back and pointed locks
+ell('hairCap',[0,3.105,-.015],[.275,.18,.25],mats.hair);ell('hairBack',[0,2.91,-.16],[.26,.29,.12],mats.hair);
+for(let i=0;i<9;i++){const x=-.235+i*.058;const z=.155+Math.cos(i*.8)*.025;const y=3.02+(i%3)*.018;const lock=ell('bang'+i,[x,y,z],[.058,.15+(i%2)*.025,.065],mats.hair);lock.rotation.z=(i-4)*-.12}
+for(let i=0;i<7;i++){const a=i/6*Math.PI*1.2-.6;const lock=ell('spike'+i,[Math.sin(a)*.17,3.22+Math.sin(i*2)*.025,-.02+Math.cos(a)*.12],[.065,.15,.07],mats.hair);lock.rotation.z=-Math.sin(a)*.65}
+// kimono underlayer and wrap panels
+ell('inner',[0,1.93,.005],[.245,.53,.16],mats.white);
+ell('torso',[0,1.94,0],[.32,.55,.205],mats.robe);
+// sleeves, softly tapered and hanging
+cyl('sleeveL',[-.32,2.25,0],[-.52,1.48,.02],.19,.145,mats.robe);
+cyl('sleeveR',[.32,2.25,0],[.52,1.48,.02],.19,.145,mats.robe);
+ell('handL',[-.52,1.34,.035],[.07,.13,.07],mats.skin);ell('handR',[.52,1.34,.035],[.07,.13,.07],mats.skin);
+// overlapping kimono lapels, front-facing diagonal cloth strips
+const lapelGeo=new THREE.BoxGeometry(.15,.83,.045);
+mesh('lapelLeft',lapelGeo,mats.robe,[-.105,2.13,.194],[1,1,1],[0,0,-.38]);
+mesh('lapelRight',lapelGeo,mats.robe,[.105,2.13,.2],[1,1,1],[0,0,.38]);
+// long hakama-like lower garment, split legs with subtle pleats
+cyl('skirtL',[-.145,1.25,0],[-.16,.18,0],.18,.125,mats.robe);
+cyl('skirtR',[.145,1.25,0],[.16,.18,0],.18,.125,mats.robe);
+for(let i=-2;i<=2;i++){const x=i*.075;const pleat=mesh('pleat'+i,new THREE.BoxGeometry(.012,.86,.012),new THREE.MeshStandardMaterial({color:'#222b38',roughness:1}),[x,.72,.126]);pleat.rotation.z=x*.16}
+// wide layered black obi sash and hanging ties
+box('obi',[0,1.57,.015],[.68,.19,.44],mats.obi);
+box('obiUpper',[0,1.68,.02],[.65,.065,.45],mats.obi);
+box('obiKnot',[.24,1.55,.245],[.2,.18,.07],mats.obi,[0,0,-.2]);
+box('obiTie1',[.28,1.34,.25],[.075,.36,.045],mats.obi,[0,0,-.12]);
+box('obiTie2',[.17,1.37,.255],[.065,.29,.045],mats.obi,[0,0,.18]);
+// ankles, wooden geta platforms and black straps
+cyl('ankleL',[-.16,.27,0],[-.16,.13,0],.055,.05,mats.skin);cyl('ankleR',[.16,.27,0],[.16,.13,0],.055,.05,mats.skin);
+box('getaL',[-.16,.075,.07],[.2,.09,.34],mats.sandal);box('getaR',[.16,.075,.07],[.2,.09,.34],mats.sandal);
+cyl('strapL1',[-.16,.12,.18],[-.22,.22,.02],.018,.018,mats.obi,10);cyl('strapL2',[-.16,.12,.18],[-.10,.22,.02],.018,.018,mats.obi,10);
+cyl('strapR1',[.16,.12,.18],[.10,.22,.02],.018,.018,mats.obi,10);cyl('strapR2',[.16,.12,.18],[.22,.22,.02],.018,.018,mats.obi,10);
+const skinKeys=['neck','face','earL','earR','handL','handR'];const skinChoices=['#f4d2b8','#e9bd9e','#c98f6b','#8f5c43','#f0c4a6'];let currentSkin='#e9bd9e';
+document.querySelector('#skins').innerHTML=skinChoices.map(c=>'<button class="swatch" title="Тон кожи" data-color="'+c+'" style="background:'+c+'"></button>').join('');
+function colorSet(material,c){material.color.set(c)}
+document.querySelectorAll('.swatch').forEach(b=>b.onclick=()=>{currentSkin=b.dataset.color;skinKeys.forEach(k=>colorSet(parts[k].material,currentSkin));});
+document.querySelector('#hair').oninput=e=>Object.keys(parts).filter(k=>k.startsWith('hair')||k.startsWith('bang')||k.startsWith('spike')).forEach(k=>colorSet(parts[k].material,e.target.value));
+document.querySelector('#eyes').oninput=e=>['eyeL','eyeR','browL','browR'].forEach(k=>colorSet(parts[k].material,e.target.value));
+document.querySelector('#robe').oninput=e=>Object.keys(parts).filter(k=>['torso','sleeveL','sleeveR','lapelLeft','lapelRight','skirtL','skirtR'].includes(k)).forEach(k=>colorSet(parts[k].material,e.target.value));
+document.querySelector('#obi').oninput=e=>Object.keys(parts).filter(k=>k.startsWith('obi')||k.startsWith('strap')).forEach(k=>colorSet(parts[k].material,e.target.value));
+document.querySelector('#sandal').oninput=e=>['getaL','getaR'].forEach(k=>colorSet(parts[k].material,e.target.value));
+document.querySelector('#hairStyle').onchange=e=>{const mode=e.target.value;for(let i=0;i<9;i++){parts['bang'+i].visible=mode!=='neat'||i>=3&&i<=5;parts['bang'+i].scale.y=mode==='long'?.22:mode==='neat'?.10:.15+(i%2)*.025}for(let i=0;i<7;i++)parts['spike'+i].visible=mode==='messy';parts.hairBack.scale.y=mode==='long'?.42:.29};
+const height=document.querySelector('#height'),build=document.querySelector('#build'),heightVal=document.querySelector('#heightVal'),buildVal=document.querySelector('#buildVal');
+function updateScale(){const h=+height.value,b=+build.value;root.scale.set(b,h,b);heightVal.textContent=h.toFixed(2);buildVal.textContent=b.toFixed(2)}height.oninput=build.oninput=updateScale;
+const defaults={hair:'#171820',eyes:'#29211d',robe:'#343d4b',obi:'#17191e',sandal:'#795333',height:'1',build:'1',hairStyle:'messy'};
+function save(){const data={name:document.querySelector('#name').value,skin:currentSkin};Object.keys(defaults).forEach(k=>data[k]=document.querySelector('#'+k).value);localStorage.setItem('sakura-character',JSON.stringify(data));document.querySelector('#status').textContent='Образ сохранён в этом браузере.'}
 document.querySelector('#save').onclick=save;
-document.querySelector('#reset').onclick=()=>{Object.entries(initial).forEach(([k,v])=>{const el=document.getElementById(k);if(el)el.value=v});currentSkin=initial.skin;document.querySelectorAll('.swatch').forEach(b=>{if(b.dataset.color===currentSkin)b.click()});['hair','eyes','top','bottom','shoes'].forEach(k=>document.getElementById(k).dispatchEvent(new Event('input')));document.querySelector('#hairStyle').dispatchEvent(new Event('change'));updateScale();document.querySelector('#status').textContent='Настройки сброшены.'};
+document.querySelector('#reset').onclick=()=>{Object.entries(defaults).forEach(([k,v])=>document.querySelector('#'+k).value=v);currentSkin='#e9bd9e';document.querySelectorAll('.swatch').forEach(b=>{if(b.dataset.color===currentSkin)b.click()});['hair','eyes','robe','obi','sandal','hairStyle'].forEach(k=>document.querySelector('#'+k).dispatchEvent(new Event('input')));document.querySelector('#hairStyle').dispatchEvent(new Event('change'));updateScale();document.querySelector('#status').textContent='Настройки сброшены.'};
+const saved=localStorage.getItem('sakura-character');if(saved){try{const d=JSON.parse(saved);if(d.name)document.querySelector('#name').value=d.name;Object.keys(defaults).forEach(k=>{if(d[k])document.querySelector('#'+k).value=d[k]});if(d.skin){currentSkin=d.skin;skinKeys.forEach(k=>colorSet(parts[k].material,currentSkin))}['hair','eyes','robe','obi','sandal'].forEach(k=>document.querySelector('#'+k).dispatchEvent(new Event('input')));document.querySelector('#hairStyle').dispatchEvent(new Event('change'));updateScale()}catch{}}
 document.querySelector('#png').onclick=()=>{renderer.render(scene,camera);const a=document.createElement('a');a.download='sakura-character.png';a.href=renderer.domElement.toDataURL('image/png');a.click()};
-function resize(){const r=canvas.getBoundingClientRect();camera.aspect=r.width/r.height;camera.updateProjectionMatrix();renderer.setSize(r.width,r.height,false)}new ResizeObserver(resize).observe(canvas);resize();
-function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera)}animate();document.querySelector('#status').textContent='3D-персонаж готов. Можно настраивать.';
+function resize(){const r=canvas.getBoundingClientRect();if(!r.width||!r.height)return;camera.aspect=r.width/r.height;camera.updateProjectionMatrix();renderer.setSize(r.width,r.height,false)}new ResizeObserver(resize).observe(canvas);resize();
+function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera)}animate();document.querySelector('#status').textContent='Персонаж по референсу готов. Настройки доступны слева.';
 </script>
 </body></html>
