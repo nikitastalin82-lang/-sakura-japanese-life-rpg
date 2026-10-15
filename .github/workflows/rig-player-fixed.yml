@@ -19,10 +19,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Blender
+      - name: Set up Blender-compatible Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Blender and NumPy
         run: |
           sudo apt-get update
           sudo apt-get install -y blender
+          python -m pip install --disable-pip-version-check --target /tmp/blender-python numpy==1.26.4
 
       - name: Verify source model
         run: |
@@ -33,6 +39,7 @@ jobs:
         env:
           INPUT_GLB: 20261015073811_7513e2ed.glb
           OUTPUT_GLB: public/models/player-rigged.glb
+          PYTHONPATH: /tmp/blender-python
         run: |
           set -euo pipefail
           blender -b --python tools/rig_player.py
