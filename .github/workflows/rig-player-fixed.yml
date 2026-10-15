@@ -1,0 +1,60 @@
+name: Rig player model (fixed)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "tools/rig_player.py"
+      - ".github/workflows/rig-player-fixed.yml"
+      - "20261015073811_7513e2ed.glb"
+
+permissions:
+  contents: write
+
+jobs:
+  rig:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Blender
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y blender
+
+      - name: Verify source model
+        run: |
+          test -s "20261015073811_7513e2ed.glb"
+          mkdir -p public/models
+
+      - name: Rig and validate model
+        env:
+          INPUT_GLB: 20261015073811_7513e2ed.glb
+          OUTPUT_GLB: public/models/player-rigged.glb
+        run: |
+          set -euo pipefail
+          blender -b --python tools/rig_player.py
+          test -s public/models/player-rigged.glb
+          ls -lh public/models/player-rigged.glb
+
+      - name: Commit rigged model
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/models/player-rigged.glb
+          if ! git diff --cached --quiet; then
+            git commit -m "Add rigged player model"
+            git push
+          else
+            echo "Rigged model is already up to date"
+          fi
+
+      - name: Upload rigged model artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: player-rigged-glb
+          path: public/models/player-rigged.glb
+          if-no-files-found: error
