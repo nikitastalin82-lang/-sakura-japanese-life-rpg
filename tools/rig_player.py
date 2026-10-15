@@ -42,6 +42,50 @@ coords = [v.co.copy() for v in mesh.data.vertices]
 minv = Vector((min(v.x for v in coords), min(v.y for v in coords), min(v.z for v in coords)))
 maxv = Vector((max(v.x for v in coords), max(v.y for v in coords), max(v.z for v in coords)))
 center = (minv + maxv) * 0.5
+
+# The source GLB has no materials or textures. Give the original mesh a
+# restrained Sakura-style palette using polygon height and lateral position.
+# This changes appearance only; the source geometry remains untouched.
+palette = [
+    ("Skin_Warm", (0.78, 0.48, 0.34, 1.0)),
+    ("Hair_Dark", (0.075, 0.045, 0.04, 1.0)),
+    ("Sakura_Top", (0.82, 0.39, 0.53, 1.0)),
+    ("Navy_Trousers", (0.12, 0.17, 0.27, 1.0)),
+    ("Shoes", (0.16, 0.105, 0.075, 1.0)),
+]
+materials = []
+for name, color in palette:
+    material = bpy.data.materials.new(name=name)
+    material.diffuse_color = color
+    material.use_nodes = True
+    principled = material.node_tree.nodes.get("Principled BSDF")
+    if principled:
+        principled.inputs["Base Color"].default_value = color
+        principled.inputs["Roughness"].default_value = 0.82
+    materials.append(material)
+mesh.data.materials.clear()
+for material in materials:
+    mesh.data.materials.append(material)
+
+# Assign broad clothing/body regions. The mesh remains one continuous mesh.
+for polygon in mesh.data.polygons:
+    centroid = sum((mesh.data.vertices[index].co for index in polygon.vertices), Vector()) / len(polygon.vertices)
+    z = (centroid.z - minv.z) / max(height, 1e-8)
+    side = abs(centroid.x - center.x) / max(height, 1e-8)
+    if z < 0.065:
+        polygon.material_index = 4  # shoes
+    elif z < 0.47:
+        polygon.material_index = 3  # trousers
+    elif z < 0.80:
+        # Exposed hands are skin; the rest of the arms and torso use the top.
+        polygon.material_index = 0 if (z < 0.42 and side > 0.13) else 2
+    elif z < 0.865:
+        polygon.material_index = 0  # neck
+    elif z > 0.965:
+        polygon.material_index = 1  # hair cap
+    else:
+        polygon.material_index = 0  # face
+
 # Blender uses Z-up internally. The glTF importer converts the original Y-up
 # character into Blender coordinates, so the character's vertical axis here is Z.
 height = maxv.z - minv.z
@@ -142,21 +186,29 @@ idle = make_pose_action("Idle", [
     (31, P(chest=(0,0,0), head=(0,0,0))),
 ])
 walk_keys = []
-for frame, swing in ((1,.38),(9,0),(17,-.38),(25,0),(33,.38)):
+# A one-second alternating gait with bent knees, counter-swinging arms,
+# a small torso counter-rotation, and feet that counter-rotate to stay level.
+for frame, swing in ((1,0.32),(7,0),(13,-0.32),(19,0),(25,0.32)):
     walk_keys.append((frame, P(**{
         "thigh.L":(swing,0,0), "thigh.R":(-swing,0,0),
-        "shin.L":(max(0,-swing)*.75,0,0), "shin.R":(max(0,swing)*.75,0,0),
-        "upper_arm.L":(-swing*.75,0,0), "upper_arm.R":(swing*.75,0,0),
-        "forearm.L":(.08,0,0), "forearm.R":(.08,0,0), "spine":(.025,0,0)
+        "shin.L":(max(0,-swing)*0.95,0,0), "shin.R":(max(0,swing)*0.95,0,0),
+        "foot.L":(-swing*0.32,0,0), "foot.R":(swing*0.32,0,0),
+        "upper_arm.L":(-swing*0.72,0,0), "upper_arm.R":(swing*0.72,0,0),
+        "forearm.L":(0.12,0,0), "forearm.R":(0.12,0,0),
+        "pelvis":(0,0,swing*0.045), "spine":(0.018,0,-swing*0.035),
+        "chest":(-0.018,0,0)
     })))
 walk = make_pose_action("Walk", walk_keys)
 run_keys = []
-for frame, swing in ((1,.68),(7,0),(13,-.68),(19,0),(25,.68)):
+for frame, swing in ((1,0.56),(7,0),(13,-0.56),(19,0),(25,0.56)):
     run_keys.append((frame, P(**{
         "thigh.L":(swing,0,0), "thigh.R":(-swing,0,0),
-        "shin.L":(max(0,-swing)*1.15,0,0), "shin.R":(max(0,swing)*1.15,0,0),
-        "upper_arm.L":(-swing,0,0), "upper_arm.R":(swing,0,0),
-        "forearm.L":(.28,0,0), "forearm.R":(.28,0,0), "spine":(.07,0,0)
+        "shin.L":(max(0,-swing)*1.12,0,0), "shin.R":(max(0,swing)*1.12,0,0),
+        "foot.L":(-swing*0.38,0,0), "foot.R":(swing*0.38,0,0),
+        "upper_arm.L":(-swing*0.92,0,0), "upper_arm.R":(swing*0.92,0,0),
+        "forearm.L":(0.22,0,0), "forearm.R":(0.22,0,0),
+        "pelvis":(0,0,swing*0.055), "spine":(0.055,0,-swing*0.04),
+        "chest":(-0.035,0,0)
     })))
 run = make_pose_action("Run", run_keys)
 turn = make_pose_action("Turn", [
