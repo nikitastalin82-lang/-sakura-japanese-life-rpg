@@ -108,9 +108,11 @@ for side, sign in (("L",1),("R",-1)):
       (f"upper_arm.{side}", p(sign*0.055,0.78), p(sign*0.17,0.63), "chest"),
       (f"forearm.{side}", p(sign*0.17,0.63), p(sign*0.20,0.43), f"upper_arm.{side}"),
       (f"hand.{side}", p(sign*0.20,0.43), p(sign*0.20,0.35), f"forearm.{side}"),
-      (f"thigh.{side}", p(sign*0.045,0.48), p(sign*0.05,0.27), "pelvis"),
-      (f"shin.{side}", p(sign*0.05,0.27), p(sign*0.05,0.07), f"thigh.{side}"),
-      (f"foot.{side}", p(sign*0.05,0.07), p(sign*0.05,0.025,0.07), f"shin.{side}"),
+      # A slightly wider, symmetric neutral stance keeps the knees under the hips
+      # and the feet parallel instead of letting both legs collapse toward center.
+      (f"thigh.{side}", p(sign*0.065,0.48), p(sign*0.075,0.27), "pelvis"),
+      (f"shin.{side}", p(sign*0.075,0.27), p(sign*0.065,0.07), f"thigh.{side}"),
+      (f"foot.{side}", p(sign*0.065,0.07), p(sign*0.065,0.025,0.07), f"shin.{side}"),
     ]
 
 arm_data = bpy.data.armatures.new("CharacterRig")
