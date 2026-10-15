@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Sakura Character Studio</title>
+<style>
+:root{color-scheme:dark;--bg:#10171d;--panel:#19242c;--line:#2b3a44;--pink:#f29ab5;--muted:#9aabb5}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#f4f5f6;font:15px Inter,system-ui,sans-serif}
+header{height:64px;padding:0 22px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);background:#121c23}
+.logo{font-weight:800;letter-spacing:2px}.logo span{color:var(--pink)}a{color:inherit;text-decoration:none}
+main{display:grid;grid-template-columns:minmax(280px,350px) 1fr;min-height:calc(100vh - 64px)}
+aside{padding:22px;border-right:1px solid var(--line);background:var(--panel);overflow:auto}
+h1{font-size:22px;margin:0 0 7px}p{color:var(--muted);line-height:1.5;margin:0 0 20px}
+.group{padding:17px 0;border-top:1px solid var(--line)}h3{font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#b9c6cc;margin:0 0 13px}
+.field{display:flex;justify-content:space-between;align-items:center;margin:12px 0;color:#e6ebee}.field output{color:var(--pink);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--pink)}input[type=color]{width:42px;height:30px;padding:2px;border:1px solid var(--line);background:transparent;border-radius:7px}
+.colors{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.swatch{width:27px;height:27px;border:2px solid #ffffff30;border-radius:50%;cursor:pointer}.swatch:focus{outline:2px solid white}
+select,input[type=text]{background:#10191f;color:white;border:1px solid var(--line);border-radius:8px;padding:10px;width:100%}
+.stage{position:relative;min-height:650px;background:radial-gradient(ellipse at 50% 42%,#31424c 0,#1b2932 42%,#111a20 78%);overflow:hidden}
+#view{position:absolute;inset:0;width:100%;height:100%}.hint{position:absolute;bottom:18px;left:0;right:0;text-align:center;color:#aab8bf;font-size:12px;pointer-events:none}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px}.btn{border:0;border-radius:9px;padding:12px 14px;font-weight:700;cursor:pointer;background:var(--pink);color:#24131a}.btn.secondary{background:#293943;color:#f1f4f5;border:1px solid #40515c}.btn:active{transform:translateY(1px)}
+.status{font-size:12px;color:#9aabb5;margin-top:12px;min-height:18px}
+@media(max-width:760px){main{grid-template-columns:1fr}.stage{min-height:54vh;grid-row:1}aside{border-right:0}.hint{bottom:9px}}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+</head>
+<body>
+<header><a class="logo" href="./">SAKURA <span>STUDIO</span></a><span style="color:#9aabb5;font-size:12px">3D CHARACTER CREATOR</span></header>
+<main>
+<aside>
+<h1>Создание персонажа</h1><p>Настрой внешность и одежду. Персонаж сразу меняется в 3D-просмотре.</p>
+<div class="group"><h3>Внешность</h3>
+<div class="field"><label for="skin">Тон кожи</label></div><div class="colors" id="skins"></div>
+<div class="field"><label for="hair">Цвет волос</label><input id="hair" type="color" value="#20202a"></div>
+<div class="field"><label for="hairStyle">Причёска</label></div><select id="hairStyle"><option value="short">Короткие</option><option value="long">Длинные</option><option value="spiky">Взъерошенные</option></select>
+<div class="field"><label for="eyes">Цвет глаз</label><input id="eyes" type="color" value="#49352b"></div>
+</div>
+<div class="group"><h3>Одежда</h3>
+<div class="field"><label for="top">Верх</label><input id="top" type="color" value="#e8e8ed"></div>
+<div class="field"><label for="bottom">Брюки</label><input id="bottom" type="color" value="#263b59"></div>
+<div class="field"><label for="shoes">Обувь</label><input id="shoes" type="color" value="#24272d"></div>
+</div>
+<div class="group"><h3>Телосложение</h3>
+<div class="field"><label for="height">Рост</label><output id="heightVal">1.00</output></div><input id="height" type="range" min=".85" max="1.15" step=".01" value="1">
+<div class="field"><label for="build">Комплекция</label><output id="buildVal">1.00</output></div><input id="build" type="range" min=".85" max="1.2" step=".01" value="1">
+</div>
+<div class="group"><h3>Имя персонажа</h3><input id="name" type="text" maxlength="24" placeholder="Например, Хару"></div>
+<div class="actions"><button class="btn" id="save">Сохранить образ</button><button class="btn secondary" id="png">Скачать PNG</button><button class="btn secondary" id="reset">Сбросить</button></div>
+<div class="status" id="status">Загружаю 3D-сцену…</div>
+</aside>
+<section class="stage"><canvas id="view"></canvas><div class="hint">Зажми мышь и двигай, чтобы повернуть персонажа · Колёсико — приблизить</div></section>
+</main>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const canvas=document.querySelector('#view'), scene=new THREE.Scene();scene.background=null;
+const camera=new THREE.PerspectiveCamera(32,1,.1,100);camera.position.set(4,3.1,7);
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputColorSpace=THREE.SRGBColorSpace;
+const controls=new OrbitControls(camera,canvas);controls.target.set(0,1.65,0);controls.enableDamping=true;controls.minDistance=4;controls.maxDistance=10;
+scene.add(new THREE.HemisphereLight(0xe7f1ff,0x59606b,2));const key=new THREE.DirectionalLight(0xffffff,2.6);key.position.set(4,7,5);scene.add(key);const rim=new THREE.DirectionalLight(0xffb5ce,1.4);rim.position.set(-4,4,-4);scene.add(rim);
+const floor=new THREE.Mesh(new THREE.CircleGeometry(2.5,64),new THREE.MeshStandardMaterial({color:0x263640,roughness:.9}));floor.rotation.x=-Math.PI/2;floor.position.y=-.04;scene.add(floor);
+const mat=(c,rough=.78)=>new THREE.MeshStandardMaterial({color:c,roughness:rough});
+const root=new THREE.Group();scene.add(root);const parts={};
+function ball(name,pos,scale,color){const m=new THREE.Mesh(new THREE.SphereGeometry(1,32,24),mat(color));m.position.set(...pos);m.scale.set(...scale);root.add(m);parts[name]=m;return m}
+function limb(name,a,b,r1,r2,color){const d=new THREE.Vector3(...b).sub(new THREE.Vector3(...a));const m=new THREE.Mesh(new THREE.CylinderGeometry(r2,r1,d.length(),20),mat(color));m.position.copy(new THREE.Vector3(...a).add(new THREE.Vector3(...b)).multiplyScalar(.5));m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());root.add(m);parts[name]=m;return m}
+const skin=0xe9bd9e;
+ball('torso',[0,1.48,0],[.39,.56,.22],0xe8e8ed);
+ball('neck',[0,2.06,0],[.13,.17,.13],skin);
+ball('head',[0,2.38,0],[.31,.4,.28],skin);
+ball('earL',[-.31,2.38,0],[.07,.1,.055],skin);ball('earR',[.31,2.38,0],[.07,.1,.055],skin);
+ball('eyeL',[-.115,2.42,.254],[.035,.045,.018],0x49352b);ball('eyeR',[.115,2.42,.254],[.035,.045,.018],0x49352b);
+ball('hairCap',[0,2.67,-.005],[.325,.19,.29],0x20202a);
+for(let i=0;i<5;i++)ball('bang'+i,[-.22+i*.11,2.57,.19],[.09,.19,.09],0x20202a);
+limb('armL',[-.39,1.83,0],[-.52,1.12,.02],.12,.09,skin);limb('armR',[.39,1.83,0],[.52,1.12,.02],.12,.09,skin);
+ball('handL',[-.52,1.04,.02],[.095,.12,.09],skin);ball('handR',[.52,1.04,.02],[.095,.12,.09],skin);
+limb('legL',[-.16,.94,0],[-.18,.2,0],.15,.105,0x263b59);limb('legR',[.16,.94,0],[.18,.2,0],.15,.105,0x263b59);
+ball('shoeL',[-.18,.11,.1],[.14,.11,.25],0x24272d);ball('shoeR',[.18,.11,.1],[.14,.11,.25],0x24272d);
+function recolor(keys,c){keys.forEach(k=>{if(parts[k])parts[k].material.color.set(c)})}
+const skinChoices=['#f4d2b8','#e9bd9e','#c98f6b','#8f5c43','#f0c4a6'];let currentSkin='#e9bd9e';
+document.querySelector('#skins').innerHTML=skinChoices.map((c,i)=>'<button class="swatch" title="Тон кожи" data-color="'+c+'" style="background:'+c+'"></button>').join('');
+document.querySelectorAll('.swatch').forEach(b=>b.onclick=()=>{currentSkin=b.dataset.color;['head','neck','earL','earR','armL','armR','handL','handR'].forEach(k=>parts[k].material.color.set(currentSkin));});
+function setColor(id,keys){document.querySelector('#'+id).addEventListener('input',e=>recolor(keys,e.target.value))}
+setColor('hair',['hairCap','bang0','bang1','bang2','bang3','bang4']);setColor('eyes',['eyeL','eyeR']);setColor('top',['torso']);setColor('bottom',['legL','legR']);setColor('shoes',['shoeL','shoeR']);
+document.querySelector('#hairStyle').onchange=e=>{const v=e.target.value;['bang0','bang1','bang2','bang3','bang4'].forEach((k,i)=>{parts[k].visible=v!=='short'||i===1||i===2||i===3;parts[k].scale.y=v==='spiky'?.25:.19});if(v==='long'){parts.hairCap.scale.set(.34,.22,.3)}else parts.hairCap.scale.set(.325,.19,.29)};
+function updateScale(){const h=+height.value,b=+build.value;root.scale.set(b,h,b);heightVal.textContent=h.toFixed(2);buildVal.textContent=b.toFixed(2)}
+const height=document.querySelector('#height'),build=document.querySelector('#build'),heightVal=document.querySelector('#heightVal'),buildVal=document.querySelector('#buildVal');height.oninput=build.oninput=updateScale;
+const initial={hair:'#20202a',eyes:'#49352b',top:'#e8e8ed',bottom:'#263b59',shoes:'#24272d',height:1,build:1,hairStyle:'short',skin:'#e9bd9e'};
+function save(){const data={name:document.querySelector('#name').value,skin:currentSkin,hair:hair.value,eyes:eyes.value,top:top.value,bottom:bottom.value,shoes:shoes.value,height:height.value,build:build.value,hairStyle:hairStyle.value};localStorage.setItem('sakura-character',JSON.stringify(data));status.textContent='Образ сохранён в этом браузере.'}
+document.querySelector('#save').onclick=save;
+document.querySelector('#reset').onclick=()=>{Object.entries(initial).forEach(([k,v])=>{const el=document.getElementById(k);if(el)el.value=v});currentSkin=initial.skin;document.querySelectorAll('.swatch').forEach(b=>{if(b.dataset.color===currentSkin)b.click()});['hair','eyes','top','bottom','shoes'].forEach(k=>document.getElementById(k).dispatchEvent(new Event('input')));hairStyle.dispatchEvent(new Event('change'));updateScale();status.textContent='Настройки сброшены.'};
+document.querySelector('#png').onclick=()=>{renderer.render(scene,camera);const a=document.createElement('a');a.download='sakura-character.png';a.href=renderer.domElement.toDataURL('image/png');a.click()};
+function resize(){const r=canvas.getBoundingClientRect();camera.aspect=r.width/r.height;camera.updateProjectionMatrix();renderer.setSize(r.width,r.height,false)}new ResizeObserver(resize).observe(canvas);resize();
+function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera)}animate();status.textContent='3D-персонаж готов. Можно настраивать.';
+</script>
+</body></html>
