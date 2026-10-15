@@ -28,7 +28,21 @@ const player = new THREE.Group();
 player.position.set(0,0,4);
 scene.add(player);
 const characterLoader = new GLTFLoader();
-const characterUrl = 'https://raw.githubusercontent.com/nikitastalin82-lang/-sakura-japanese-life-rpg/main/20261015073811_7513e2ed.glb';
+const characterUrl = 'https://raw.githubusercontent.com/nikitastalin82-lang/-sakura-japanese-life-rpg/main/public/models/player-rigged.glb';
+let characterMixer: THREE.AnimationMixer | null = null;
+const characterActions = new Map<string, THREE.AnimationAction>();
+let activeCharacterAnimation = '';
+let turnAnimationTimer = 0;
+let previousPlayerYaw = player.rotation.y;
+function playCharacterAnimation(name: string) {
+  if (activeCharacterAnimation === name) return;
+  const next = characterActions.get(name);
+  if (!next) return;
+  const previous = characterActions.get(activeCharacterAnimation);
+  previous?.fadeOut(0.16);
+  next.reset().fadeIn(0.16).play();
+  activeCharacterAnimation = name;
+}
 characterLoader.load(characterUrl, (gltf) => {
   const model = gltf.scene;
   model.updateMatrixWorld(true);
@@ -46,10 +60,16 @@ characterLoader.load(characterUrl, (gltf) => {
     }
   });
   player.add(model);
+  characterMixer = new THREE.AnimationMixer(gltf.scene);
+  for (const clip of gltf.animations) {
+    characterActions.set(clip.name, characterMixer.clipAction(clip));
+  }
+  if (characterActions.has('Idle')) playCharacterAnimation('Idle');
+  console.info('Персонаж загружен. Анимации:', [...characterActions.keys()]);
 }, undefined, (error) => {
-  console.error('Не удалось загрузить исходную GLB-модель персонажа:', error);
+  console.error('Не удалось загрузить анимированную GLB-модель:', error);
   const hint = document.getElementById('hint');
-  if (hint) hint.textContent = 'Не удалось загрузить GLB-персонажа. Проверь подключение к GitHub.';
+  if (hint) hint.textContent = 'Анимированная модель пока не загрузилась. Проверь публикацию player-rigged.glb.';
 });
 const keys=new Set<string>();
 // Minecraft-style desktop mouse look: pointer lock hides the system cursor while playing.
@@ -59,7 +79,7 @@ renderer.domElement.addEventListener('click',()=>{if(isDesktop()&&document.point
 document.addEventListener('pointerlockchange',()=>{document.body.classList.toggle('pointer-locked',document.pointerLockElement===renderer.domElement)});
 document.addEventListener('mousemove',e=>{if(document.pointerLockElement!==renderer.domElement)return;viewYaw-=e.movementX*.0025;viewPitch=THREE.MathUtils.clamp(viewPitch-e.movementY*.002,-.75,1.05)});
 // Use physical key positions (KeyboardEvent.code), so movement also works with a Russian or other keyboard layout.
-const keyName=(e:KeyboardEvent)=>({KeyW:'w',KeyA:'a',KeyS:'s',KeyD:'d',KeyE:'e',KeyC:'c',ArrowUp:'arrowup',ArrowDown:'arrowdown',ArrowLeft:'arrowleft',ArrowRight:'arrowright'} as Record<string,string>)[e.code] ?? e.key.toLowerCase();
+const keyName=(e:KeyboardEvent)=>({KeyW:'w',KeyA:'a',KeyS:'s',KeyD:'d',KeyE:'e',KeyC:'c',ArrowUp:'arrowup',ArrowDown:'arrowdown',ArrowLeft:'arrowleft',ArrowRight:'arrowright',ShiftLeft:'shift',ShiftRight:'shift'} as Record<string,string>)[e.code] ?? e.key.toLowerCase();
 addEventListener('keydown',e=>{const key=keyName(e);if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(key))e.preventDefault();if(!keys.has(key)){keys.add(key);if(key==='c')toggleCamera();if(key==='e')interact()}});
 addEventListener('keyup',e=>keys.delete(keyName(e)));
 addEventListener('blur',()=>keys.clear());
@@ -76,7 +96,22 @@ const places=[{name:'Школа',x:-13,z:-13,desc:'Школа открыта. У
 function interact(){const p=places.find(v=>Math.hypot(player.position.x-v.x,player.position.z-v.z)<6);const el=document.getElementById('interaction')!;el.textContent=p?p.desc:'Рядом нет места для взаимодействия.';el.style.display='block';setTimeout(()=>el.style.display='none',2600)}
 const saved=localStorage.getItem('sakura-position');if(saved){try{const p=JSON.parse(saved);player.position.set(p.x,0,p.z)}catch{}}
 let last=performance.now(),gameMinutes=480;const target=new THREE.Vector3();
-function animate(now:number){requestAnimationFrame(animate);const dt=Math.min((now-last)/1000,.05);last=now;let dx=joyX,dz=joyY;if(keys.has('w')||keys.has('arrowup'))dz+=1;if(keys.has('s')||keys.has('arrowdown'))dz-=1;if(keys.has('a')||keys.has('arrowleft'))dx+=1;if(keys.has('d')||keys.has('arrowright'))dx-=1;const moving=Math.abs(dx)+Math.abs(dz)>.08;if(moving){const l=Math.hypot(dx,dz);if(l>1){dx/=l;dz/=l;}const moveSpeed=5*Math.min(1,Math.hypot(dx,dz));const worldX=dx*Math.cos(viewYaw)+dz*Math.sin(viewYaw),worldZ=-dx*Math.sin(viewYaw)+dz*Math.cos(viewYaw);player.position.x+=worldX*moveSpeed*dt;player.position.z+=worldZ*moveSpeed*dt;player.rotation.y=Math.atan2(worldX,worldZ);player.position.x=THREE.MathUtils.clamp(player.position.x,-43,43);player.position.z=THREE.MathUtils.clamp(player.position.z,-43,43)}
+function animate(now:number){requestAnimationFrame(animate);const dt=Math.min((now-last)/1000,.05);last=now;let dx=joyX,dz=joyY;if(keys.has('w')||keys.has('arrowup'))dz+=1;if(keys.has('s')||keys.has('arrowdown'))dz-=1;if(keys.has('a')||keys.has('arrowleft'))dx+=1;if(keys.has('d')||keys.has('arrowright'))dx-=1;const moving=Math.abs(dx)+Math.abs(dz)>.08;if(moving){const l=Math.hypot(dx,dz);if(l>1){dx/=l;dz/=l;}const sprinting=keys.has('shift');const moveSpeed=(sprinting?8:5)*Math.min(1,Math.hypot(dx,dz));const worldX=dx*Math.cos(viewYaw)+dz*Math.sin(viewYaw),worldZ=-dx*Math.sin(viewYaw)+dz*Math.cos(viewYaw);player.position.x+=worldX*moveSpeed*dt;player.position.z+=worldZ*moveSpeed*dt;player.rotation.y=Math.atan2(worldX,worldZ);player.position.x=THREE.MathUtils.clamp(player.position.x,-43,43);player.position.z=THREE.MathUtils.clamp(player.position.z,-43,43)}
+if (moving) {
+  const yawDelta = Math.atan2(Math.sin(player.rotation.y-previousPlayerYaw), Math.cos(player.rotation.y-previousPlayerYaw));
+  if (Math.abs(yawDelta) > 0.9 && turnAnimationTimer <= 0 && characterActions.has('Turn')) turnAnimationTimer = 0.22;
+  previousPlayerYaw = player.rotation.y;
+  if (turnAnimationTimer > 0) {
+    turnAnimationTimer -= dt;
+    playCharacterAnimation('Turn');
+  } else {
+    playCharacterAnimation(keys.has('shift') ? 'Run' : 'Walk');
+  }
+} else {
+  turnAnimationTimer = 0;
+  playCharacterAnimation('Idle');
+}
+characterMixer?.update(dt);
 gameMinutes+=dt*1.5;const hh=String(Math.floor(gameMinutes/60)%24).padStart(2,'0'),mm=String(Math.floor(gameMinutes%60)).padStart(2,'0');document.getElementById('clock')!.textContent=hh+':'+mm;
 if(firstPerson){camera.position.set(player.position.x,player.position.y+1.65,player.position.z);target.set(player.position.x+Math.sin(viewYaw)*Math.cos(viewPitch),1.65+Math.sin(viewPitch),player.position.z+Math.cos(viewYaw)*Math.cos(viewPitch))}else{const distance=8.5,horizontal=distance*Math.cos(viewPitch);const offset=new THREE.Vector3(-Math.sin(viewYaw)*horizontal,2.2+distance*Math.sin(viewPitch),-Math.cos(viewYaw)*horizontal);camera.position.lerp(new THREE.Vector3(player.position.x+offset.x,player.position.y+offset.y,player.position.z+offset.z),.16);target.set(player.position.x,1.15,player.position.z)}
 camera.lookAt(target);renderer.render(scene,camera);if(Math.floor(now/3000)!==Math.floor((now-dt*1000)/3000))localStorage.setItem('sakura-position',JSON.stringify({x:player.position.x,z:player.position.z}))}
