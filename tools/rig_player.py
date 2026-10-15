@@ -1,16 +1,10 @@
-import bpy, math, os, sys, subprocess
+import bpy, math, os, sys
 from mathutils import Vector
 
-# Blender's bundled Python may not include NumPy, which the glTF importer requires.
 try:
     import numpy  # noqa: F401
-except ImportError:
-    blender_python = bpy.app.binary_path_python
-    if not blender_python or not os.path.exists(blender_python):
-        raise RuntimeError("Blender's Python executable was not found; cannot install NumPy")
-    subprocess.check_call([blender_python, "-m", "ensurepip", "--upgrade"])
-    subprocess.check_call([blender_python, "-m", "pip", "install", "--disable-pip-version-check", "numpy==1.26.4"])
-    import numpy  # noqa: F401
+except ImportError as exc:
+    raise RuntimeError("NumPy is missing from Blender Python; install the matching NumPy wheel in the workflow") from exc
 
 src = os.environ.get("INPUT_GLB", "20261015073811_7513e2ed.glb")
 out = os.environ.get("OUTPUT_GLB", "public/models/player-rigged.glb")
@@ -116,13 +110,67 @@ mesh.select_set(False)
 arm.select_set(True)
 bpy.context.view_layer.objects.active = arm
 
-# Export the skinned model; keep source GLB untouched.
+# Build four named animation clips on the real skeleton.
+arm.animation_data_create()
+pose_bones = arm.pose.bones
+for pb in pose_bones:
+    pb.rotation_mode = "XYZ"
+
+def make_pose_action(name, keyframes):
+    action = bpy.data.actions.new(name=name)
+    arm.animation_data.action = action
+    for frame, rotations in keyframes:
+        for bone_name, rotation in rotations.items():
+            pb = pose_bones.get(bone_name)
+            if pb is not None:
+                pb.rotation_euler = rotation
+                pb.keyframe_insert(data_path="rotation_euler", frame=frame, group=bone_name)
+    for curve in action.fcurves:
+        curve.modifiers.new(type="CYCLES")
+    return action
+
+def P(**items):
+    return items
+
+idle = make_pose_action("Idle", [
+    (1, P(chest=(0,0,0), head=(0,0,0))),
+    (16, P(chest=(-0.025,0,0), head=(0.015,0,0))),
+    (31, P(chest=(0,0,0), head=(0,0,0))),
+])
+walk_keys = []
+for frame, swing in ((1,.38),(9,0),(17,-.38),(25,0),(33,.38)):
+    walk_keys.append((frame, P(**{
+        "thigh.L":(swing,0,0), "thigh.R":(-swing,0,0),
+        "shin.L":(max(0,-swing)*.75,0,0), "shin.R":(max(0,swing)*.75,0,0),
+        "upper_arm.L":(-swing*.75,0,0), "upper_arm.R":(swing*.75,0,0),
+        "forearm.L":(.08,0,0), "forearm.R":(.08,0,0), "spine":(.025,0,0)
+    })))
+walk = make_pose_action("Walk", walk_keys)
+run_keys = []
+for frame, swing in ((1,.68),(7,0),(13,-.68),(19,0),(25,.68)):
+    run_keys.append((frame, P(**{
+        "thigh.L":(swing,0,0), "thigh.R":(-swing,0,0),
+        "shin.L":(max(0,-swing)*1.15,0,0), "shin.R":(max(0,swing)*1.15,0,0),
+        "upper_arm.L":(-swing,0,0), "upper_arm.R":(swing,0,0),
+        "forearm.L":(.28,0,0), "forearm.R":(.28,0,0), "spine":(.07,0,0)
+    })))
+run = make_pose_action("Run", run_keys)
+turn = make_pose_action("Turn", [
+    (1, P(spine=(0,0,-.18), head=(0,0,.12), **{"upper_arm.L":(.08,0,0),"upper_arm.R":(-.08,0,0)})),
+    (7, P(spine=(0,0,.18), head=(0,0,-.12), **{"upper_arm.L":(-.08,0,0),"upper_arm.R":(.08,0,0)})),
+    (13, P(spine=(0,0,0), head=(0,0,0), **{"upper_arm.L":(0,0,0),"upper_arm.R":(0,0,0)})),
+])
+actions = [idle, walk, run, turn]
+arm.animation_data.action = idle
+
+# Export the skinned model and all named glTF animation clips.
 bpy.ops.export_scene.gltf(filepath=out, export_format="GLB", use_selection=False,
-                          export_skins=True, export_animations=False,
+                          export_skins=True, export_animations=True,
+                          export_animation_mode="ACTIONS",
                           export_apply=False, export_yup=True)
 if not os.path.isfile(out) or os.path.getsize(out) < 1024:
     raise RuntimeError("Rigged GLB export is missing or unexpectedly small")
 if not any(obj.type == "ARMATURE" for obj in bpy.context.scene.objects):
     raise RuntimeError("Export validation failed: no armature in scene")
 print("RIGGED_EXPORT_OK", out, os.path.getsize(out), flush=True)
-print("MESH_VERTICES", len(mesh.data.vertices), "BONES", len(arm_data.bones), flush=True)
+print("MESH_VERTICES", len(mesh.data.vertices), "BONES", len(arm_data.bones), "ANIMATIONS", [a.name for a in actions], flush=True)
