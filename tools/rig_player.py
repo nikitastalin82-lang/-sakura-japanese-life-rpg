@@ -42,12 +42,15 @@ coords = [v.co.copy() for v in mesh.data.vertices]
 minv = Vector((min(v.x for v in coords), min(v.y for v in coords), min(v.z for v in coords)))
 maxv = Vector((max(v.x for v in coords), max(v.y for v in coords), max(v.z for v in coords)))
 center = (minv + maxv) * 0.5
-height = maxv.y - minv.y
-if height <= 0: raise RuntimeError("Character has no vertical height")
+# Blender uses Z-up internally. The glTF importer converts the original Y-up
+# character into Blender coordinates, so the character's vertical axis here is Z.
+height = maxv.z - minv.z
+if height <= 0: raise RuntimeError("Character has no vertical height on Blender Z axis")
 
 # Build a humanoid skeleton proportioned to the original model's measured bounds.
-def p(x, y, z=0):
-    return (center.x + x * height, minv.y + y * height, center.z + z * height)
+# x = character left/right, y = front/back, z = vertical.
+def p(x, z, y=0):
+    return (center.x + x * height, center.y + y * height, minv.z + z * height)
 
 bones = [
  ("root", p(0,0.02), p(0,0.12), None),
