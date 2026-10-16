@@ -12,6 +12,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: rig-player-main
+  cancel-in-progress: false
+
 jobs:
   rig:
     runs-on: ubuntu-24.04
@@ -37,25 +41,26 @@ jobs:
       - name: Rig and validate model
         env:
           INPUT_GLB: anime_man_traditional_robe.glb
-          OUTPUT_GLB: public/models/player-rigged.glb
+          OUTPUT_GLB: /tmp/player-rigged.glb
         run: |
           set -euo pipefail
           "$GITHUB_WORKSPACE/blender-4.0.2-linux-x64/blender" -b --python tools/rig_player.py
-          test -s public/models/player-rigged.glb
-          ls -lh public/models/player-rigged.glb
+          test -s /tmp/player-rigged.glb
+          ls -lh /tmp/player-rigged.glb
 
       - name: Commit rigged model
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Start from the latest main so concurrent source changes cannot cause a binary rebase conflict.
+          git fetch origin main
+          git reset --hard origin/main
+          mkdir -p public/models
+          cp /tmp/player-rigged.glb public/models/player-rigged.glb
           git add public/models/player-rigged.glb
           if ! git diff --cached --quiet; then
             git commit -m "Add rigged player model"
-            # Other source edits may land on main while Blender is running.
-            # Rebase the generated binary commit onto the newest main before pushing.
-            git fetch origin main
-            git rebase origin/main
             git push origin HEAD:main
           else
             echo "Rigged model is already up to date"
@@ -65,5 +70,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: player-rigged-glb
-          path: public/models/player-rigged.glb
+          path: /tmp/player-rigged.glb
           if-no-files-found: error
