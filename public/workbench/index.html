@@ -101,6 +101,8 @@ $('addBox').onclick=()=>{if(!model){say('Сначала загрузи моде�
 $('delete').onclick=()=>{if(!selected||selected===model)return;const parent=selected.parent;transform.detach();parent.remove(selected);selected=null;populateTree();populateBones();refreshFields();countModel(model,clips);$('delete').disabled=true;say('Объект удалён')};
 $('export').onclick=()=>{if(!model)return;say('Подготавливаю GLB…');const exporter=new GLTFExporter();exporter.parse(model,result=>{const blob=new Blob([result],{type:'model/gltf-binary'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='sakura-character-edited.glb';a.click();URL.revokeObjectURL(url);say('Экспорт GLB завершён')},err=>{console.error(err);say('Ошибка экспорта: '+err.message)},{binary:true,animations:clips});};
 function tick(){requestAnimationFrame(tick);const dt=Math.min(clock.getDelta(),.05);if(mixer)mixer.update(dt);if(skeletonHelper)skeletonHelper.update();orbit.update();renderer.render(scene,camera)}const clock=new THREE.Clock();tick();
+// Open the workbench with the Sakura character already loaded; users can still reload it manually.
+$('loadRemote').click();
 window.addEventListener('beforeunload',()=>{objectUrls.forEach(URL.revokeObjectURL);draco.dispose();renderer.dispose()});
 </script>
 </body></html>
