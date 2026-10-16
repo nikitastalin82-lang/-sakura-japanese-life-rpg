@@ -89,20 +89,38 @@ for name, head, tail, parent in bones:
     if parent: edit[name].parent = edit[parent]
 bpy.ops.object.mode_set(mode="OBJECT")
 
-# Smooth distance-based skinning is robust on this single-piece, watertight character mesh.
+# Region-aware smooth skinning. A single-piece robe must not inherit leg
+# weights across the whole skirt: limit limb influence to its actual region.
 segments = [(name, Vector(h), Vector(t)) for name,h,t,parent in bones if name != "root"]
 groups = {name: mesh.vertex_groups.new(name=name) for name,_,_ in segments}
 for i, v in enumerate(mesh.data.vertices):
     point = v.co
+    z = (point.z - minv.z) / height
+    x = (point.x - center.x) / height
     distances = []
     for name, a, b in segments:
+        # Keep upper-body cloth attached to the torso instead of the moving legs.
+        if name.startswith("thigh") and z > 0.64: continue
+        if name.startswith("shin") and z > 0.40: continue
+        if name.startswith("foot") and z > 0.19: continue
+        # Arms should affect sleeves and hands, not the chest or central robe.
+        if name.startswith(("upper_arm", "forearm", "hand")):
+            side = 1 if name.endswith(".L") else -1
+            if z < 0.30 or x * side < 0.045: continue
+        if name == "head" and z < 0.78: continue
+        if name == "neck" and z < 0.68: continue
         ab = b-a
         t = max(0.0, min(1.0, (point-a).dot(ab) / max(ab.length_squared, 1e-9)))
         d = (point - (a + t*ab)).length
+        # Smoothly fade leg influence near the top of the robe.
+        if name.startswith("thigh") and z > 0.48:
+            d += height * (z - 0.48) * 2.5
         distances.append((d, name))
+    if not distances:
+        distances = [(height, "pelvis")]
     distances.sort()
     nearest = distances[:4]
-    raw = [(name, 1.0 / max(d, height*0.012)**2) for d,name in nearest]
+    raw = [(name, 1.0 / max(d, height*0.018)**2) for d,name in nearest]
     total = sum(w for _,w in raw)
     for name,w in raw:
         groups[name].add([i], w/total, "REPLACE")
@@ -147,22 +165,23 @@ idle = make_pose_action("Idle", [
 walk_keys = []
 # A one-second alternating gait with bent knees, counter-swinging arms,
 # a small torso counter-rotation, and feet that counter-rotate to stay level.
-for frame, swing in ((1,0.32),(7,0),(13,-0.32),(19,0),(25,0.32)):
+for frame, swing in ((1,0.22),(7,0),(13,-0.22),(19,0),(25,0.22)):
+    # Knees flex on the forward swing; feet counter-rotate to stay level.
     walk_keys.append((frame, P(**{
         "thigh.L":(swing,0,0), "thigh.R":(-swing,0,0),
-        "shin.L":(max(0,-swing)*0.95,0,0), "shin.R":(max(0,swing)*0.95,0,0),
-        "foot.L":(-swing*0.32,0,0), "foot.R":(swing*0.32,0,0),
-        "upper_arm.L":(-swing*0.72,0,0), "upper_arm.R":(swing*0.72,0,0),
-        "forearm.L":(0.12,0,0), "forearm.R":(0.12,0,0),
-        "pelvis":(0,0,swing*0.045), "spine":(0.018,0,-swing*0.035),
-        "chest":(-0.018,0,0)
+        "shin.L":(max(0,swing)*0.62,0,0), "shin.R":(max(0,-swing)*0.62,0,0),
+        "foot.L":(-swing*0.42,0,0), "foot.R":(swing*0.42,0,0),
+        "upper_arm.L":(-swing*0.48,0,0), "upper_arm.R":(swing*0.48,0,0),
+        "forearm.L":(0.06,0,0), "forearm.R":(0.06,0,0),
+        "pelvis":(0,0,swing*0.018), "spine":(0.008,0,-swing*0.018),
+        "chest":(-0.008,0,0)
     })))
 walk = make_pose_action("Walk", walk_keys)
 run_keys = []
-for frame, swing in ((1,0.56),(7,0),(13,-0.56),(19,0),(25,0.56)):
+for frame, swing in ((1,0.42),(7,0),(13,-0.42),(19,0),(25,0.42)):
     run_keys.append((frame, P(**{
         "thigh.L":(swing,0,0), "thigh.R":(-swing,0,0),
-        "shin.L":(max(0,-swing)*1.12,0,0), "shin.R":(max(0,swing)*1.12,0,0),
+        "shin.L":(max(0,swing)*0.88,0,0), "shin.R":(max(0,-swing)*0.88,0,0),
         "foot.L":(-swing*0.38,0,0), "foot.R":(swing*0.38,0,0),
         "upper_arm.L":(-swing*0.92,0,0), "upper_arm.R":(swing*0.92,0,0),
         "forearm.L":(0.22,0,0), "forearm.R":(0.22,0,0),
