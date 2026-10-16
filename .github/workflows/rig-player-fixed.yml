@@ -7,7 +7,7 @@ on:
     paths:
       - "tools/rig_player.py"
       - ".github/workflows/rig-player-fixed.yml"
-      - "20261015073811_7513e2ed.glb"
+      - "anime_man_traditional_robe.glb"
 
 permissions:
   contents: write
@@ -22,20 +22,25 @@ jobs:
       - name: Install Blender with matching system NumPy
         run: |
           sudo apt-get update
-          sudo apt-get install -y blender python3-numpy
+          sudo apt-get install -y xz-utils
+          curl -L --fail --retry 3 -o blender.tar.xz https://download.blender.org/release/Blender4.0/blender-4.0.2-linux-x64.tar.xz
+          tar -xf blender.tar.xz
+          echo "$GITHUB_WORKSPACE/blender-4.0.2-linux-x64" >> "$GITHUB_PATH"
+          test -f blender-4.0.2-linux-x64/blender
+          find blender-4.0.2-linux-x64 -name 'libextern_draco.so' -print -quit | grep -q .
 
       - name: Verify source model
         run: |
-          test -s "20261015073811_7513e2ed.glb"
+          test -s "anime_man_traditional_robe.glb"
           mkdir -p public/models
 
       - name: Rig and validate model
         env:
-          INPUT_GLB: 20261015073811_7513e2ed.glb
+          INPUT_GLB: anime_man_traditional_robe.glb
           OUTPUT_GLB: public/models/player-rigged.glb
         run: |
           set -euo pipefail
-          blender -b --python tools/rig_player.py
+          "$GITHUB_WORKSPACE/blender-4.0.2-linux-x64/blender" -b --python tools/rig_player.py
           test -s public/models/player-rigged.glb
           ls -lh public/models/player-rigged.glb
 
