@@ -177,7 +177,7 @@ for frame, swing in ((1,0.14),(7,0),(13,-0.14),(19,0),(25,0.14)):
     # Knees flex on the forward swing; feet counter-rotate to stay level.
     walk_keys.append((frame, P(**{
         "thigh.L":(swing,0,0), "thigh.R":(-swing,0,0),
-        "shin.L":(max(0,swing)*0.38,0,0), "shin.R":(max(0,-swing)*0.38,0,0),
+        "shin.L":(max(0,swing)*3.0,0,0), "shin.R":(max(0,-swing)*3.0,0,0),
         "foot.L":(-swing*0.42,0,0), "foot.R":(swing*0.42,0,0),
         "upper_arm.L":(-swing*0.48,0,0), "upper_arm.R":(swing*0.48,0,0),
         "forearm.L":(0.06,0,0), "forearm.R":(0.06,0,0),
@@ -189,7 +189,7 @@ run_keys = []
 for frame, swing in ((1,0.28),(7,0),(13,-0.28),(19,0),(25,0.28)):
     run_keys.append((frame, P(**{
         "thigh.L":(swing,0,0), "thigh.R":(-swing,0,0),
-        "shin.L":(max(0,swing)*0.58,0,0), "shin.R":(max(0,-swing)*0.58,0,0),
+        "shin.L":(max(0,swing)*2.5,0,0), "shin.R":(max(0,-swing)*2.5,0,0),
         "foot.L":(-swing*0.38,0,0), "foot.R":(swing*0.38,0,0),
         "upper_arm.L":(-swing*0.92,0,0), "upper_arm.R":(swing*0.92,0,0),
         "forearm.L":(0.22,0,0), "forearm.R":(0.22,0,0),
