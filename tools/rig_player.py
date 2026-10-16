@@ -43,6 +43,31 @@ minv = Vector((min(v.x for v in coords), min(v.y for v in coords), min(v.z for v
 maxv = Vector((max(v.x for v in coords), max(v.y for v in coords), max(v.z for v in coords)))
 center = (minv + maxv) * 0.5
 
+# Correct the source mesh's toe-out neutral stance before creating the rig.
+# Rotate only the low foot/shoe region around each ankle, with a smooth fade
+# toward the lower shin so the ankle transition is not a hard geometric seam.
+height0 = maxv.z - minv.z
+if height0 > 0:
+    ankle_z = minv.z + height0 * 0.075
+    ankle_x = height0 * 0.065
+    toe_in = math.radians(12.0)
+    for v in mesh.data.vertices:
+        zf = (v.co.z - minv.z) / height0
+        xf = (v.co.x - center.x) / height0
+        if zf < 0.145 and abs(xf) > 0.025:
+            side = 1 if xf > 0 else -1
+            # Positive-X leg is the character's left leg.
+            angle = toe_in * side
+            fade = max(0.0, min(1.0, (0.145 - zf) / 0.055))
+            fade = fade * fade * (3.0 - 2.0 * fade)
+            pivot_x = center.x + side * ankle_x
+            dx, dy = v.co.x - pivot_x, v.co.y - center.y
+            a = angle * fade
+            ca, sa = math.cos(a), math.sin(a)
+            v.co.x = pivot_x + dx * ca - dy * sa
+            v.co.y = center.y + dx * sa + dy * ca
+    mesh.data.update()
+
 # Establish dimensions before any region/rig calculations.
 height = maxv.z - minv.z
 if height <= 0: raise RuntimeError("Character has no vertical height on Blender Z axis")
