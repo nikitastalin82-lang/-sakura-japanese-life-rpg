@@ -97,7 +97,8 @@ for side, sign in (("L",1),("R",-1)):
       # extends forward on Y; left/right separation comes only from X.
       (f"thigh.{side}", p(sign*0.065,0.48), p(sign*0.065,0.27), "pelvis"),
       (f"shin.{side}", p(sign*0.065,0.27), p(sign*0.065,0.07), f"thigh.{side}"),
-      (f"foot.{side}", p(sign*0.065,0.07), p(sign*0.065,0.025,0.07), f"shin.{side}"),
+      # Foot bone follows the foot's long axis instead of pointing down.
+      (f"foot.{side}", p(sign*0.065,0.07), p(sign*0.065,0.055,0.16), f"shin.{side}"),
     ]
 
 arm_data = bpy.data.armatures.new("CharacterRig")
