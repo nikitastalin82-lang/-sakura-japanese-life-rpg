@@ -43,29 +43,42 @@ minv = Vector((min(v.x for v in coords), min(v.y for v in coords), min(v.z for v
 maxv = Vector((max(v.x for v in coords), max(v.y for v in coords), max(v.z for v in coords)))
 center = (minv + maxv) * 0.5
 
-# Correct the source mesh's toe-out neutral stance before creating the rig.
-# Rotate only the low foot/shoe region around each ankle, with a smooth fade
-# toward the lower shin so the ankle transition is not a hard geometric seam.
+# Measure each foot's actual horizontal long axis from its vertices and
+# rotate it toward the common forward axis. A guessed fixed angle is unreliable
+# because imported characters may have different source orientations.
 height0 = maxv.z - minv.z
 if height0 > 0:
-    ankle_z = minv.z + height0 * 0.075
-    ankle_x = height0 * 0.065
-    toe_in = math.radians(12.0)
-    for v in mesh.data.vertices:
-        zf = (v.co.z - minv.z) / height0
-        xf = (v.co.x - center.x) / height0
-        if zf < 0.145 and abs(xf) > 0.025:
-            side = 1 if xf > 0 else -1
-            # Positive-X leg is the character's left leg.
-            angle = toe_in * side
-            fade = max(0.0, min(1.0, (0.145 - zf) / 0.055))
-            fade = fade * fade * (3.0 - 2.0 * fade)
-            pivot_x = center.x + side * ankle_x
-            dx, dy = v.co.x - pivot_x, v.co.y - center.y
-            a = angle * fade
-            ca, sa = math.cos(a), math.sin(a)
-            v.co.x = pivot_x + dx * ca - dy * sa
-            v.co.y = center.y + dx * sa + dy * ca
+    for side_sign in (1, -1):
+        foot_vertices = [
+            v for v in mesh.data.vertices
+            if (v.co.z - minv.z) / height0 < 0.115
+            and ((v.co.x - center.x) * side_sign) > height0 * 0.018
+            and abs(v.co.x - center.x) > height0 * 0.025
+        ]
+        if len(foot_vertices) < 20:
+            print("FOOT_AXIS_SKIP", side_sign, len(foot_vertices), flush=True)
+            continue
+        xs = [v.co.x for v in foot_vertices]
+        ys = [v.co.y for v in foot_vertices]
+        mx, my = sum(xs)/len(xs), sum(ys)/len(ys)
+        cxx = sum((x-mx)**2 for x in xs) / len(xs)
+        cyy = sum((y-my)**2 for y in ys) / len(ys)
+        cxy = sum((x-mx)*(y-my) for x,y in zip(xs,ys)) / len(xs)
+        # Principal axis angle measured from +X; align it with the Y axis.
+        theta = 0.5 * math.atan2(2.0*cxy, cxx-cyy)
+        candidates = [math.pi/2-theta, -math.pi/2-theta]
+        delta = min(candidates, key=lambda a: abs(a))
+        # Limit correction to avoid rotating a malformed vertex cluster wildly.
+        delta = max(-math.radians(35), min(math.radians(35), delta))
+        ankle_x = center.x + side_sign * height0 * 0.065
+        ankle_y = min(v.co.y for v in foot_vertices) if side_sign == 1 else min(v.co.y for v in foot_vertices)
+        ankle_z = minv.z + height0 * 0.075
+        ca, sa = math.cos(delta), math.sin(delta)
+        for v in foot_vertices:
+            dx, dy = v.co.x-ankle_x, v.co.y-ankle_y
+            v.co.x = ankle_x + dx*ca - dy*sa
+            v.co.y = ankle_y + dx*sa + dy*ca
+        print("FOOT_AXIS_CORRECTION", side_sign, round(math.degrees(delta),2), "vertices", len(foot_vertices), flush=True)
     mesh.data.update()
 
 # Establish dimensions before any region/rig calculations.
