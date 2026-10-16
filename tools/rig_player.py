@@ -68,8 +68,10 @@ for side, sign in (("L",1),("R",-1)):
       (f"hand.{side}", p(sign*0.20,0.43), p(sign*0.20,0.35), f"forearm.{side}"),
       # A slightly wider, symmetric neutral stance keeps the knees under the hips
       # and the feet parallel instead of letting both legs collapse toward center.
-      (f"thigh.{side}", p(sign*0.065,0.48), p(sign*0.075,0.27), "pelvis"),
-      (f"shin.{side}", p(sign*0.075,0.27), p(sign*0.065,0.07), f"thigh.{side}"),
+      # Keep each leg chain on one straight vertical centerline. The foot
+      # extends forward on Y; left/right separation comes only from X.
+      (f"thigh.{side}", p(sign*0.065,0.48), p(sign*0.065,0.27), "pelvis"),
+      (f"shin.{side}", p(sign*0.065,0.27), p(sign*0.065,0.07), f"thigh.{side}"),
       (f"foot.{side}", p(sign*0.065,0.07), p(sign*0.065,0.025,0.07), f"shin.{side}"),
     ]
 
@@ -99,6 +101,12 @@ for i, v in enumerate(mesh.data.vertices):
     x = (point.x - center.x) / height
     distances = []
     for name, a, b in segments:
+        # Keep left/right leg weights on their own side. Without this
+        # partition, nearest-neighbour weighting can blend the opposite leg
+        # into the inner robe and pull the knees/feet diagonally.
+        if name.startswith(("thigh", "shin", "foot")):
+            side_sign = 1 if name.endswith(".L") else -1
+            if x * side_sign < 0.012: continue
         # Keep upper-body cloth attached to the torso instead of the moving legs.
         if name.startswith("thigh") and z > 0.64: continue
         if name.startswith("shin") and z > 0.40: continue
@@ -165,11 +173,11 @@ idle = make_pose_action("Idle", [
 walk_keys = []
 # A one-second alternating gait with bent knees, counter-swinging arms,
 # a small torso counter-rotation, and feet that counter-rotate to stay level.
-for frame, swing in ((1,0.22),(7,0),(13,-0.22),(19,0),(25,0.22)):
+for frame, swing in ((1,0.14),(7,0),(13,-0.14),(19,0),(25,0.14)):
     # Knees flex on the forward swing; feet counter-rotate to stay level.
     walk_keys.append((frame, P(**{
         "thigh.L":(swing,0,0), "thigh.R":(-swing,0,0),
-        "shin.L":(max(0,swing)*0.62,0,0), "shin.R":(max(0,-swing)*0.62,0,0),
+        "shin.L":(max(0,swing)*0.38,0,0), "shin.R":(max(0,-swing)*0.38,0,0),
         "foot.L":(-swing*0.42,0,0), "foot.R":(swing*0.42,0,0),
         "upper_arm.L":(-swing*0.48,0,0), "upper_arm.R":(swing*0.48,0,0),
         "forearm.L":(0.06,0,0), "forearm.R":(0.06,0,0),
@@ -178,10 +186,10 @@ for frame, swing in ((1,0.22),(7,0),(13,-0.22),(19,0),(25,0.22)):
     })))
 walk = make_pose_action("Walk", walk_keys)
 run_keys = []
-for frame, swing in ((1,0.42),(7,0),(13,-0.42),(19,0),(25,0.42)):
+for frame, swing in ((1,0.28),(7,0),(13,-0.28),(19,0),(25,0.28)):
     run_keys.append((frame, P(**{
         "thigh.L":(swing,0,0), "thigh.R":(-swing,0,0),
-        "shin.L":(max(0,swing)*0.88,0,0), "shin.R":(max(0,-swing)*0.88,0,0),
+        "shin.L":(max(0,swing)*0.58,0,0), "shin.R":(max(0,-swing)*0.58,0,0),
         "foot.L":(-swing*0.38,0,0), "foot.R":(swing*0.38,0,0),
         "upper_arm.L":(-swing*0.92,0,0), "upper_arm.R":(swing*0.92,0,0),
         "forearm.L":(0.22,0,0), "forearm.R":(0.22,0,0),
