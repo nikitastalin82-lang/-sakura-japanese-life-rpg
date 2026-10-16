@@ -6,7 +6,7 @@ try:
 except ImportError as exc:
     raise RuntimeError("NumPy is missing from Blender Python; install the matching NumPy wheel in the workflow") from exc
 
-src = os.environ.get("INPUT_GLB", "20261015073811_7513e2ed.glb")
+src = os.environ.get("INPUT_GLB", "anime_man_traditional_robe.glb")
 out = os.environ.get("OUTPUT_GLB", "public/models/player-rigged.glb")
 os.makedirs(os.path.dirname(out), exist_ok=True)
 
@@ -233,7 +233,9 @@ arm.animation_data.action = idle
 bpy.ops.export_scene.gltf(filepath=out, export_format="GLB", use_selection=False,
                           export_skins=True, export_animations=True,
                           export_animation_mode="ACTIONS",
-                          export_apply=False, export_yup=True)
+                          export_apply=False, export_yup=True,
+                          export_draco_mesh_compression_enable=True,
+                          export_draco_mesh_compression_level=6)
 if not os.path.isfile(out) or os.path.getsize(out) < 1024:
     raise RuntimeError("Rigged GLB export is missing or unexpectedly small")
 if not any(obj.type == "ARMATURE" for obj in bpy.context.scene.objects):
