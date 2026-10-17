@@ -357,12 +357,12 @@ idle = make_pose_action("Idle", [
 walk_keys = []
 # A one-second alternating gait with bent knees, counter-swinging arms,
 # a small torso counter-rotation, and feet that counter-rotate to stay level.
-for frame, swing in ((1,0.14),(7,0),(13,-0.14),(19,0),(25,0.14)):
-    # Knees flex on the forward swing; feet counter-rotate to stay level.
+for frame, swing in ((1,0.40),(7,0),(13,-0.40),(19,0),(25,0.40)):
+    # Larger hip travel and a controlled knee lift make the planted/swing phases readable.
     walk_keys.append((frame, P(**{
         "thigh.L":(swing,0,0), "thigh.R":(-swing,0,0),
-        "shin.L":(max(0,swing)*3.0,0,0), "shin.R":(max(0,-swing)*3.0,0,0),
-        "foot.L":(-swing*0.42,0,0), "foot.R":(swing*0.42,0,0),
+        "shin.L":(max(0,swing)*1.65,0,0), "shin.R":(max(0,-swing)*1.65,0,0),
+        "foot.L":(-swing*0.62,0,0), "foot.R":(swing*0.62,0,0),
         "upper_arm.L":(-swing*1.55,0,0), "upper_arm.R":(swing*1.55,0,0),
         "forearm.L":(0.16+max(0,-swing)*0.25,0,0), "forearm.R":(0.16+max(0,swing)*0.25,0,0),
         "hand.L":(-swing*0.22,0,0), "hand.R":(swing*0.22,0,0),
@@ -371,11 +371,11 @@ for frame, swing in ((1,0.14),(7,0),(13,-0.14),(19,0),(25,0.14)):
     })))
 walk = make_pose_action("Walk", walk_keys)
 run_keys = []
-for frame, swing in ((1,0.28),(7,0),(13,-0.28),(19,0),(25,0.28)):
+for frame, swing in ((1,0.62),(7,0),(13,-0.62),(19,0),(25,0.62)):
     run_keys.append((frame, P(**{
         "thigh.L":(swing,0,0), "thigh.R":(-swing,0,0),
-        "shin.L":(max(0,swing)*2.5,0,0), "shin.R":(max(0,-swing)*2.5,0,0),
-        "foot.L":(-swing*0.38,0,0), "foot.R":(swing*0.38,0,0),
+        "shin.L":(max(0,swing)*1.8,0,0), "shin.R":(max(0,-swing)*1.8,0,0),
+        "foot.L":(-swing*0.58,0,0), "foot.R":(swing*0.58,0,0),
         "upper_arm.L":(-swing*1.75,0,0), "upper_arm.R":(swing*1.75,0,0),
         "forearm.L":(0.28+max(0,-swing)*0.35,0,0), "forearm.R":(0.28+max(0,swing)*0.35,0,0),
         "hand.L":(-swing*0.3,0,0), "hand.R":(swing*0.3,0,0),
