@@ -79,15 +79,24 @@ if height0 > 0:
         toe_vertices = [v for v in foot_vertices if v.co.y >= toe_threshold]
         toe_x = sum(v.co.x for v in toe_vertices) / len(toe_vertices)
         toe_y = sum(v.co.y for v in toe_vertices) / len(toe_vertices)
-        dx, dy = toe_x - ankle_x, toe_y - ankle_y
-        # Rotate the toe vector onto +Y. Clamp to avoid extreme corrections.
+        # Rotate around the shoe's own center, not the ankle pivot.
+        # Rotating around the ankle shifts the shoe sideways because its
+        # geometry center is forward of the ankle, undoing trouser alignment.
+        shoe_pivot_x = sum(v.co.x for v in foot_vertices) / len(foot_vertices)
+        shoe_pivot_y = sum(v.co.y for v in foot_vertices) / len(foot_vertices)
+        dx, dy = toe_x - shoe_pivot_x, toe_y - shoe_pivot_y
+        # The toe must point along character-forward (+Y).
         delta = -math.atan2(dx, dy)
         delta = max(-math.radians(40), min(math.radians(40), delta))
         ca, sa = math.cos(delta), math.sin(delta)
         for v in foot_vertices:
-            x, y = v.co.x - ankle_x, v.co.y - ankle_y
-            v.co.x = ankle_x + x * ca - y * sa
-            v.co.y = ankle_y + x * sa + y * ca
+            x, y = v.co.x - shoe_pivot_x, v.co.y - shoe_pivot_y
+            v.co.x = shoe_pivot_x + x * ca - y * sa
+            v.co.y = shoe_pivot_y + x * sa + y * ca
+        # Keep the shoe center directly beneath its own trouser leg.
+        final_center_x = sum(v.co.x for v in foot_vertices) / len(foot_vertices)
+        for v in foot_vertices:
+            v.co.x += ankle_x - final_center_x
         print("FOOT_TOE_ALIGNMENT", side_sign, round(math.degrees(delta), 2),
               "vertices", len(foot_vertices), "toe_offset", round(dx / height0, 4), "center_shift", round(shoe_shift_x / height0, 4), flush=True)
     mesh.data.update()
