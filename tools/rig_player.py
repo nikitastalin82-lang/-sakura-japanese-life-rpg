@@ -179,12 +179,14 @@ for lo, hi in ((0.10,0.18),(0.18,0.25),(0.25,0.35),(0.35,0.42)):
 # Move each leg chain inward from the earlier positions so the bones sit
 # closer to the middle of each wide trouser panel, away from the outer sides.
 height = maxv.z - minv.z
+# Aggressive inward test offset: deliberately place both leg chains
+# much closer to the character center so the user can judge the alignment.
 leg_centers = {
-    "L": center.x + 0.085 * height,
-    "R": center.x - 0.085 * height,
+    "L": center.x + 0.055 * height,
+    "R": center.x - 0.055 * height,
 }
 print("LEG_CENTER_MEASURED", {k: round(v,5) for k,v in leg_centers.items()}, flush=True)
-print("LEG_CENTER_COMPACT", 0.055, flush=True)
+print("LEG_CENTER_TEST_OFFSET", 0.055, flush=True)
 
 height = maxv.z - minv.z
 if height <= 0: raise RuntimeError("Character has no vertical height on Blender Z axis")
