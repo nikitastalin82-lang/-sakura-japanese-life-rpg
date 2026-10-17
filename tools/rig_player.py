@@ -167,6 +167,15 @@ mesh.data.update()
 
 mesh.data.update()
 
+# TROUSER PANEL DIAGNOSTICS: histogram x coordinates in the lower garment.
+# This identifies the two actual cloth columns instead of using robe-wide medians.
+for lo, hi in ((0.10,0.18),(0.18,0.25),(0.25,0.35),(0.35,0.42)):
+    vals = np.asarray([v.co.x-center.x for v in mesh.data.vertices
+                       if lo <= (v.co.z-minv.z)/height < hi], dtype=np.float64)
+    hist, edges = np.histogram(vals, bins=48, range=(-0.36*height,0.36*height))
+    peaks = np.argsort(hist)[-12:][::-1]
+    print("TROUSER_X_HIST", lo, hi, [(round(float((edges[k]+edges[k+1])*0.5/height),4), int(hist[k])) for k in peaks], flush=True)
+
 # Keep measured cloth centers for diagnostics only; use stable joint spacing.
 height = maxv.z - minv.z
 # Derive left/right leg centers from the measured lower-leg geometry.
