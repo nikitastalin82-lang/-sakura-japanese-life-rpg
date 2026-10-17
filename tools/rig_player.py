@@ -87,40 +87,10 @@ minv = Vector((min(v.x for v in coords), min(v.y for v in coords), min(v.z for v
 maxv = Vector((max(v.x for v in coords), max(v.y for v in coords), max(v.z for v in coords)))
 center = (minv + maxv) * 0.5
 
-# Keep the neutral leg spacing symmetric, but align each shoe from its
-# own measured low-geometry footprint (2D PCA), not a guessed toe centroid.
-height0 = maxv.z - minv.z
-leg_centers = {"L": center.x + height0*0.055, "R": center.x - height0*0.055}
-for side, side_sign in (("L", 1), ("R", -1)):
-    # The bottom 11% contains the sandals/feet; split them by character side.
-    shoe_vertices = [
-        v for v in mesh.data.vertices
-        if (v.co.z - minv.z) / height0 < 0.115
-        and (v.co.x - center.x) * side_sign > height0 * 0.012
-    ]
-    if len(shoe_vertices) < 30:
-        print("FOOT_PCA_SKIP", side, len(shoe_vertices), flush=True)
-        continue
-    import numpy as np
-    xy = np.asarray([[v.co.x, v.co.y] for v in shoe_vertices], dtype=np.float64)
-    origin = xy.mean(axis=0)
-    centered = xy - origin
-    cov = centered.T @ centered / max(1, len(centered))
-    vals, vecs = np.linalg.eigh(cov)
-    axis = vecs[:, int(np.argmax(vals))]
-    # The model faces +Y. PCA axes are unsigned, so orient its long axis forward.
-    if axis[1] < 0:
-        axis = -axis
-    angle = math.atan2(float(axis[0]), float(axis[1]))
-    delta = -angle
-    ca, sa = math.cos(delta), math.sin(delta)
-    for v in shoe_vertices:
-        x, y = v.co.x - origin[0], v.co.y - origin[1]
-        v.co.x = origin[0] + x*ca - y*sa
-        v.co.y = origin[1] + x*sa + y*ca
-    print("FOOT_PCA_ALIGN", side, round(math.degrees(delta), 2), len(shoe_vertices),
-          "axis", [round(float(axis[0]),4), round(float(axis[1]),4)], flush=True)
-
+# Do not deform the lower mesh by rotating broad vertex selections.
+# The diagnostic found one connected island, so shoes cannot safely be isolated
+# by loose-part separation. Preserve source foot positions until a reliable
+# shoe-only selection is available.
 mesh.data.update()
 
 # Keep measured cloth centers for diagnostics only; use stable joint spacing.
