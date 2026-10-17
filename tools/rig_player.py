@@ -43,112 +43,42 @@ minv = Vector((min(v.x for v in coords), min(v.y for v in coords), min(v.z for v
 maxv = Vector((max(v.x for v in coords), max(v.y for v in coords), max(v.z for v in coords)))
 center = (minv + maxv) * 0.5
 
-# Determine each trouser-leg center before adjusting the shoes.
+# Use a compact parallel neutral stance. The broad trouser/robe slices
+# previously pulled the joints outward; keep the shoe geometry in place.
 height0 = maxv.z - minv.z
-leg_centers = {}
-for side, sign in (("L", 1), ("R", -1)):
-    vals = []
-    for z0, z1 in ((0.28, 0.36), (0.36, 0.44), (0.44, 0.51)):
-        xs = [v.co.x for v in mesh.data.vertices
-              if z0 <= (v.co.z - minv.z) / height0 <= z1
-              and abs((v.co.x - center.x) / height0) < 0.22
-              and ((v.co.x - center.x) * sign) > height0 * 0.012
-              and abs((v.co.y - center.y) / height0) < 0.19]
-        if len(xs) >= 20:
-            xs.sort()
-            vals.append(xs[len(xs)//2])
-    if not vals:
-        raise RuntimeError("Could not locate trouser center for leg " + side)
-    leg_centers[side] = sum(vals) / len(vals)
-    print("TROUSER_CENTER_PRE", side, round((leg_centers[side]-center.x)/height0,5), flush=True)
+leg_centers = {"L": center.x + height0*0.055, "R": center.x - height0*0.055}
+for side_sign in (1, -1):
+    shoe_x = center.x + side_sign * height0 * 0.055
+    foot_vertices = [
+        v for v in mesh.data.vertices
+        if (v.co.z - minv.z) / height0 < 0.105
+        and abs(v.co.x - shoe_x) < height0 * 0.032
+        and abs(v.co.x - center.x) > height0 * 0.018
+        and v.co.y > center.y - height0 * 0.035
+    ]
+    if len(foot_vertices) < 30:
+        print("FOOT_ALIGNMENT_SKIP", side_sign, len(foot_vertices), flush=True)
+        continue
+    px = sum(v.co.x for v in foot_vertices) / len(foot_vertices)
+    py = sum(v.co.y for v in foot_vertices) / len(foot_vertices)
+    ys = sorted(v.co.y for v in foot_vertices)
+    threshold = ys[max(0, int(len(ys)*0.88)-1)]
+    toe = [v for v in foot_vertices if v.co.y >= threshold]
+    tx = sum(v.co.x for v in toe)/len(toe)
+    ty = sum(v.co.y for v in toe)/len(toe)
+    delta = max(-math.radians(25), min(math.radians(25), -math.atan2(tx-px, ty-py)))
+    ca, sa = math.cos(delta), math.sin(delta)
+    for v in foot_vertices:
+        x, y = v.co.x-px, v.co.y-py
+        v.co.x = px + x*ca - y*sa
+        v.co.y = py + x*sa + y*ca
+    print("FOOT_PARALLEL", side_sign, round(math.degrees(delta),2), len(foot_vertices), flush=True)
+mesh.data.update()
 
-# Align each foot from its toe direction, not PCA's ambiguous principal axis.
-# The previous PCA included robe-hem vertices and could select the shoe width.
-height0 = maxv.z - minv.z
-if height0 > 0:
-    for side_sign in (1, -1):
-        ankle_x = leg_centers['L' if side_sign == 1 else 'R']
-        ankle_y = center.y
-        ankle_z = minv.z + height0 * 0.075
-
-        # Keep only the low vertices in a tight box around this ankle.
-        # This excludes the wide robe hem and the opposite shoe.
-        foot_vertices = [
-            v for v in mesh.data.vertices
-            if (v.co.z - minv.z) / height0 < 0.145
-            and abs(v.co.x - ankle_x) < height0 * 0.052
-            and abs(v.co.x - center.x) > height0 * 0.018
-            and v.co.y > center.y - height0 * 0.045
-        ]
-        if len(foot_vertices) < 30:
-            print("FOOT_ALIGNMENT_SKIP", side_sign, len(foot_vertices), flush=True)
-            continue
-
-        # The toe is the forward (+Y) end of the shoe. Estimate its lateral
-        # offset from the ankle using the foremost 12% of the selected vertices.
-        # Center the shoe mesh under its own trouser-leg bone chain.
-        # Preserve shoe width and toe direction; translate only its X center.
-        shoe_center_x = sum(v.co.x for v in foot_vertices) / len(foot_vertices)
-        shoe_shift_x = ankle_x - shoe_center_x
-        for v in foot_vertices:
-            v.co.x += shoe_shift_x
-
-        ys = sorted(v.co.y for v in foot_vertices)
-        toe_threshold = ys[max(0, int(len(ys) * 0.88) - 1)]
-        toe_vertices = [v for v in foot_vertices if v.co.y >= toe_threshold]
-        toe_x = sum(v.co.x for v in toe_vertices) / len(toe_vertices)
-        toe_y = sum(v.co.y for v in toe_vertices) / len(toe_vertices)
-        # Rotate around the shoe's own center, not the ankle pivot.
-        # Rotating around the ankle shifts the shoe sideways because its
-        # geometry center is forward of the ankle, undoing trouser alignment.
-        shoe_pivot_x = sum(v.co.x for v in foot_vertices) / len(foot_vertices)
-        shoe_pivot_y = sum(v.co.y for v in foot_vertices) / len(foot_vertices)
-        dx, dy = toe_x - shoe_pivot_x, toe_y - shoe_pivot_y
-        # The toe must point along character-forward (+Y).
-        delta = -math.atan2(dx, dy)
-        delta = max(-math.radians(40), min(math.radians(40), delta))
-        ca, sa = math.cos(delta), math.sin(delta)
-        for v in foot_vertices:
-            x, y = v.co.x - shoe_pivot_x, v.co.y - shoe_pivot_y
-            v.co.x = shoe_pivot_x + x * ca - y * sa
-            v.co.y = shoe_pivot_y + x * sa + y * ca
-        # Keep the shoe center directly beneath its own trouser leg.
-        final_center_x = sum(v.co.x for v in foot_vertices) / len(foot_vertices)
-        for v in foot_vertices:
-            v.co.x += ankle_x - final_center_x
-        print("FOOT_TOE_ALIGNMENT", side_sign, round(math.degrees(delta), 2),
-              "vertices", len(foot_vertices), "toe_offset", round(dx / height0, 4), "center_shift", round(shoe_shift_x / height0, 4), flush=True)
-    mesh.data.update()
-
-# Measure the actual left/right trouser columns from the source mesh.
-# Use several vertical slices and robust medians so the robe hem and sleeves
-# cannot dictate the leg positions.
+# Keep measured cloth centers for diagnostics only; use stable joint spacing.
 height = maxv.z - minv.z
-if height <= 0:
-    raise RuntimeError("Character has no vertical height on Blender Z axis")
-
-leg_centers = {}
-for side, sign in (("L", 1), ("R", -1)):
-    slice_centers = []
-    for z0, z1 in ((0.28, 0.36), (0.36, 0.44), (0.44, 0.51)):
-        xs = [
-            v.co.x for v in mesh.data.vertices
-            if z0 <= (v.co.z - minv.z) / height <= z1
-            and abs((v.co.x - center.x) / height) < 0.22
-            and ((v.co.x - center.x) * sign) > height * 0.012
-            and abs((v.co.y - center.y) / height) < 0.19
-        ]
-        if len(xs) >= 20:
-            xs.sort()
-            # Median suppresses wide cloth edges and stray vertices.
-            slice_centers.append(xs[len(xs) // 2])
-    if not slice_centers:
-        raise RuntimeError("Could not locate trouser center for leg " + side)
-    leg_centers[side] = sum(slice_centers) / len(slice_centers)
-    print("TROUSER_CENTER", side,
-          round((leg_centers[side] - center.x) / height, 5),
-          "slices", len(slice_centers), flush=True)
-
+leg_centers = {"L": center.x + height*0.055, "R": center.x - height*0.055}
+print("LEG_CENTER_COMPACT", 0.055, flush=True)
 
 height = maxv.z - minv.z
 if height <= 0: raise RuntimeError("Character has no vertical height on Blender Z axis")
