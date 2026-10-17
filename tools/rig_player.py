@@ -1,4 +1,4 @@
-import bpy, os, collections
+import bpy, os
 from mathutils import Vector
 
 src = os.environ.get("INPUT_GLB", "player-rigged-beautified.glb")
@@ -47,128 +47,53 @@ for mesh in meshes:
 if not skinned_meshes:
     raise RuntimeError("Original mesh weights/armature connection were not preserved")
 
-# Diagnostics: inspect the original foot/ankle skinning and disconnected mesh islands.
+# Correct the ankle transition using the original rig's actual foot-bone pivot.
+# The source weights let the foot bone influence vertices far above the ankle;
+# this broad overlap can pull the lower-leg/boot cuff when the foot rotates.
 for obj in skinned_meshes:
-    verts = obj.data.vertices
-    print("DIAG_MESH", obj.name, "VERTICES", len(verts), "GROUPS", len(obj.vertex_groups), flush=True)
-    group_by_index = {g.index: g.name for g in obj.vertex_groups}
-    for group in obj.vertex_groups:
-        if group.name.lower().startswith(("foot", "shin", "thigh", "toe")):
-            weighted = []
-            total_weight = 0.0
-            for v in verts:
-                for a in v.groups:
-                    if a.group == group.index and a.weight > 0.02:
-                        weighted.append(v.co)
-                        total_weight += a.weight
-            if weighted:
-                xs = [v.x for v in weighted]; ys = [v.y for v in weighted]; zs = [v.z for v in weighted]
-                print("DIAG_GROUP", group.name, "COUNT", len(weighted), "WEIGHT_SUM", round(total_weight,2),
-                      "BOUNDS", tuple(round(min(a),4) for a in (xs,ys,zs)),
-                      tuple(round(max(a),4) for a in (xs,ys,zs)), flush=True)
+    arm_inverse = arm.matrix_world.inverted()
+    for side, sign in (("L", 1), ("R", -1)):
+        foot_bone = arm.data.bones[f"foot.{side}"]
+        foot_group = obj.vertex_groups.get(f"foot.{side}")
+        shin_group = obj.vertex_groups.get(f"shin.{side}")
+        if foot_group is None or shin_group is None:
+            raise RuntimeError(f"Missing foot/shin vertex groups for side {side}")
+        ankle_z = foot_inverse @ (arm.matrix_world @ foot_bone.head_local)
+        ankle_z = foot_bone.head_local.z
+        start_z = ankle_z + 0.015
+        end_z = ankle_z + 0.115
+        changed = 0
+        moved_weight = 0.0
+        for vertex in obj.data.vertices:
+            point_arm = arm_inverse @ (obj.matrix_world @ vertex.co)
+            if point_arm.x * sign < 0.04 or point_arm.z <= start_z:
+                continue
+            try:
+                old_foot = foot_group.weight(vertex.index)
+            except RuntimeError:
+                continue
+            if old_foot <= 0.0001:
+                continue
+            t = max(0.0, min(1.0, (point_arm.z - start_z) / (end_z - start_z)))
+            smooth = t * t * (3.0 - 2.0 * t)
+            new_foot = old_foot * (1.0 - smooth)
+            transfer = old_foot - new_foot
+            if transfer <= 0.0001:
+                continue
+            try:
+                old_shin = shin_group.weight(vertex.index)
+            except RuntimeError:
+                old_shin = 0.0
+            if new_foot > 0.0001:
+                foot_group.add([vertex.index], new_foot, "REPLACE")
             else:
-                print("DIAG_GROUP", group.name, "COUNT", 0, flush=True)
-
-    # Union-find over polygon edges reveals detached shoe/sole/toe geometry islands.
-    parent = list(range(len(verts)))
-    rank = bytearray(len(verts))
-    def find_root(a):
-        while parent[a] != a:
-            parent[a] = parent[parent[a]]
-            a = parent[a]
-        return a
-    def join_vertices(a,b):
-        ra, rb = find_root(a), find_root(b)
-        if ra == rb: return
-        if rank[ra] < rank[rb]: ra,rb = rb,ra
-        parent[rb] = ra
-        if rank[ra] == rank[rb]: rank[ra] += 1
-    for poly in obj.data.polygons:
-        ids = poly.vertices
-        for k in range(1, len(ids)):
-            join_vertices(ids[0], ids[k])
-    components = {}
-    for v in verts:
-        root = find_root(v.index)
-        components.setdefault(root, []).append(v.index)
-    major = sorted((ids for ids in components.values() if len(ids) >= 30), key=len, reverse=True)
-    print("DIAG_COMPONENTS", "TOTAL", len(components), "OVER_30_VERTS", len(major), flush=True)
-    for ci, ids in enumerate(major[:35]):
-        points = [verts[i].co for i in ids]
-        xs = [v.x for v in points]; ys = [v.y for v in points]; zs = [v.z for v in points]
-        sums = {}
-        for vi in ids:
-            for a in verts[vi].groups:
-                name = group_by_index.get(a.group, "")
-                if name: sums[name] = sums.get(name, 0.0) + a.weight
-        dominant = sorted(sums.items(), key=lambda x:x[1], reverse=True)[:5]
-        print("DIAG_ISLAND", ci, "VERTS", len(ids),
-              "BOUNDS", tuple(round(min(a),4) for a in (xs,ys,zs)),
-              tuple(round(max(a),4) for a in (xs,ys,zs)),
-              "GROUPS", [(n,round(w,1)) for n,w in dominant], flush=True)
-
-
-
-# Detailed foot influence map: locate cross-leg/torso weights and the shin/foot transition.
-for side, sign in (("L", 1), ("R", -1)):
-    names = [f"foot.{side}", f"shin.{side}", f"thigh.{side}"]
-    print("DIAG_FOOT_BONES", side, [(n,
-        tuple(round(x,5) for x in arm.data.bones[n].head_local),
-        tuple(round(x,5) for x in arm.data.bones[n].tail_local))
-        for n in names], flush=True)
-    obj = skinned_meshes[0]
-    idx = {g.name:g.index for g in obj.vertex_groups}
-    foot_i, shin_i, thigh_i = (idx.get(n,-1) for n in names)
-    rows = []
-    for v in obj.data.vertices:
-        x,y,z = v.co
-        if x*sign < 0.035 or z > -0.45: continue
-        w = {a.group:a.weight for a in v.groups}
-        wf = w.get(foot_i,0.0); ws = w.get(shin_i,0.0); wt = w.get(thigh_i,0.0)
-        if wf+ws+wt < 0.02: continue
-        rows.append((z,wf,ws,wt,w))
-    if rows:
-        zmin=min(r[0] for r in rows); zmax=max(r[0] for r in rows)
-        print("DIAG_FOOT_REGION", side, "VERTS",len(rows),"Z",round(zmin,4),round(zmax,4),flush=True)
-        for bi in range(8):
-            lo=zmin+(zmax-zmin)*bi/8; hi=zmin+(zmax-zmin)*(bi+1)/8
-            group=[r for r in rows if lo <= r[0] <= hi]
-            if not group: continue
-            means=[sum(r[k] for r in group)/len(group) for k in (1,2,3)]
-            top=collections.Counter()
-            for r in group:
-                for gi,weight in r[4].items():
-                    top[obj.vertex_groups[gi].name]+=weight
-            print("DIAG_FOOT_BIN",side,bi,"COUNT",len(group),"MEAN_FOOT_SHIN_THIGH",
-                  tuple(round(v,3) for v in means),"TOP",[(n,round(w,1)) for n,w in top.most_common(6)],flush=True)
-
-# Compare skin weights at coincident triangle-soup vertices. These duplicates
-# should deform identically across polygon boundaries, including UV seams.
-for obj in skinned_meshes:
-    buckets = {}
-    for v in obj.data.vertices:
-        key = (round(v.co.x, 5), round(v.co.y, 5), round(v.co.z, 5))
-        weights = {a.group: a.weight for a in v.groups}
-        item = buckets.setdefault(key, {"ids": [], "sum": {}, "count": 0, "minmax": {}})
-        item["ids"].append(v.index)
-        item["count"] += 1
-        for gi, w in weights.items():
-            item["sum"][gi] = item["sum"].get(gi, 0.0) + w
-            lo, hi = item["minmax"].get(gi, (w,w))
-            item["minmax"][gi] = (min(lo,w), max(hi,w))
-    repeated = [v for v in buckets.values() if v["count"] > 1]
-    mismatched = []
-    for item in repeated:
-        divergence = max((hi-lo for lo,hi in item["minmax"].values()), default=0.0)
-        if divergence > 0.05:
-            mismatched.append((item, divergence))
-    print("DIAG_DUPLICATE_POSITIONS", "UNIQUE", len(buckets), "REPEATED_GROUPS", len(repeated),
-          "VERTICES_IN_REPEATS", sum(x["count"] for x in repeated),
-          "WEIGHT_MISMATCH_GROUPS", len(mismatched), flush=True)
-    for item, divergence in sorted(mismatched, key=lambda x:x[1], reverse=True)[:20]:
-        avg = {group_by_index.get(gi,str(gi)): round(w/item["count"],3) for gi,w in item["sum"].items()}
-        print("DIAG_WEIGHT_SEAM", "COUNT", item["count"], "MAX_DELTA", round(divergence,3),
-              "AVERAGE", avg, flush=True)
+                foot_group.remove([vertex.index])
+            shin_group.add([vertex.index], old_shin + transfer, "REPLACE")
+            changed += 1
+            moved_weight += transfer
+        print("ANKLE_WEIGHT_FIX", side, "PIVOT_Z", round(ankle_z,5),
+              "BAND", (round(start_z,5),round(end_z,5)),
+              "VERTICES", changed, "TRANSFERRED_WEIGHT", round(moved_weight,2), flush=True)
 
 # Create animation clips on the original bones. Fingers and toes remain part
 # of their correctly weighted original hand/foot regions instead of being
