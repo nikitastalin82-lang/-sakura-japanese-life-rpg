@@ -43,12 +43,17 @@ function playCharacterAnimation(name: string) {
   const next = characterActions.get(name);
   if (!next) return;
   const previous = characterActions.get(activeCharacterAnimation);
-  previous?.fadeOut(0.16);
+  // Avoid long overlapping poses that can look like a blurred double image.
+  if (previous) {
+    previous.stop();
+    previous.enabled = false;
+  }
   next.reset();
+  next.enabled = true;
   // Match the in-place gait cadence to the character's travel speed so the feet
   // do not lag behind the moving player.
   next.timeScale = name === 'Walk' ? 1.55 : name === 'Run' ? 1.75 : 1;
-  next.fadeIn(0.16).play();
+  next.play();
   activeCharacterAnimation = name;
 }
 characterLoader.load(characterUrl, (gltf) => {
