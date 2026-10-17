@@ -70,7 +70,7 @@ if height0 > 0:
         delta = min(candidates, key=lambda a: abs(a))
         # Limit correction to avoid rotating a malformed vertex cluster wildly.
         delta = max(-math.radians(35), min(math.radians(35), delta))
-        ankle_x = center.x + side_sign * height0 * 0.065
+        ankle_x = center.x + side_sign * height0 * 0.05
         ankle_y = min(v.co.y for v in foot_vertices) if side_sign == 1 else min(v.co.y for v in foot_vertices)
         ankle_z = minv.z + height0 * 0.075
         ca, sa = math.cos(delta), math.sin(delta)
@@ -108,10 +108,10 @@ for side, sign in (("L",1),("R",-1)):
       # and the feet parallel instead of letting both legs collapse toward center.
       # Keep each leg chain on one straight vertical centerline. The foot
       # extends forward on Y; left/right separation comes only from X.
-      (f"thigh.{side}", p(sign*0.065,0.48), p(sign*0.065,0.27), "pelvis"),
-      (f"shin.{side}", p(sign*0.065,0.27), p(sign*0.065,0.07), f"thigh.{side}"),
+      (f"thigh.{side}", p(sign*0.05,0.48), p(sign*0.05,0.27), "pelvis"),
+      (f"shin.{side}", p(sign*0.05,0.27), p(sign*0.05,0.07), f"thigh.{side}"),
       # Foot bone follows the foot's long axis instead of pointing down.
-      (f"foot.{side}", p(sign*0.065,0.07), p(sign*0.065,0.055,0.16), f"shin.{side}"),
+      (f"foot.{side}", p(sign*0.05,0.07), p(sign*0.05,0.055,0.16), f"shin.{side}"),
     ]
 
 arm_data = bpy.data.armatures.new("CharacterRig")
