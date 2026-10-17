@@ -58,7 +58,6 @@ for obj in skinned_meshes:
         shin_group = obj.vertex_groups.get(f"shin.{side}")
         if foot_group is None or shin_group is None:
             raise RuntimeError(f"Missing foot/shin vertex groups for side {side}")
-        ankle_z = foot_inverse @ (arm.matrix_world @ foot_bone.head_local)
         ankle_z = foot_bone.head_local.z
         start_z = ankle_z + 0.015
         end_z = ankle_z + 0.115
