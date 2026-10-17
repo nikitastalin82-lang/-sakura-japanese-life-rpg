@@ -345,6 +345,42 @@ for i, v in enumerate(mesh.data.vertices):
     for name,w in raw:
         groups[name].add([i], w/total, "REPLACE")
 
+# WEIGHT DIAGNOSTICS: report actual assigned vertex-group influence by height.
+# Read-only: this block does not modify coordinates, weights, or animation.
+group_names = {g.index: g.name for g in mesh.vertex_groups}
+weight_totals = {g.name: 0.0 for g in mesh.vertex_groups}
+weight_vertices = {g.name: 0 for g in mesh.vertex_groups}
+for v in mesh.data.vertices:
+    for membership in v.groups:
+        name = group_names.get(membership.group)
+        if name is not None and membership.weight > 0.0001:
+            weight_totals[name] += membership.weight
+            weight_vertices[name] += 1
+print("WEIGHT_GROUP_TOTALS", sorted(
+    [(name, round(total, 3), count) for name, total in weight_totals.items()],
+    key=lambda row: row[1], reverse=True), flush=True)
+for lo, hi in ((0.00,0.08),(0.08,0.18),(0.18,0.30),(0.30,0.42),
+               (0.42,0.52),(0.52,0.64),(0.64,0.78),(0.78,0.90),(0.90,1.00)):
+    counts = {}
+    for v in mesh.data.vertices:
+        zf = (v.co.z-minv.z)/height
+        if not (lo <= zf < hi):
+            continue
+        if not v.groups:
+            key = "UNWEIGHTED"
+        else:
+            strongest = max(v.groups, key=lambda item: item.weight)
+            key = group_names.get(strongest.group, "UNKNOWN")
+        counts[key] = counts.get(key, 0) + 1
+    print("DOMINANT_WEIGHTS_BY_HEIGHT", lo, hi,
+          sorted(counts.items(), key=lambda item: item[1], reverse=True), flush=True)
+
+# Confirm whether the imported mesh has topology for connected-component analysis.
+print("MESH_TOPOLOGY_COUNTS", "vertices", len(mesh.data.vertices),
+      "edges", len(mesh.data.edges), "polygons", len(mesh.data.polygons),
+      "bmesh_edges", len(bm.edges) if bm.is_valid else -1,
+      "bmesh_faces", len(bm.faces) if bm.is_valid else -1, flush=True)
+
 mod = mesh.modifiers.new("CharacterSkin", "ARMATURE")
 mod.object = arm
 mesh.parent = arm
