@@ -29,6 +29,16 @@ for obj in meshes:
     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
     obj.select_set(False)
 
+# DIAGNOSTICS: inspect original mesh objects before joining them.
+for obj in meshes:
+    if obj.data.vertices:
+        vs = [obj.matrix_world @ v.co for v in obj.data.vertices]
+        lo = [min(v[i] for v in vs) for i in range(3)]
+        hi = [max(v[i] for v in vs) for i in range(3)]
+        print("SOURCE_MESH", obj.name, "verts", len(vs),
+              "bounds", [round(x,5) for x in lo], [round(x,5) for x in hi],
+              "materials", [m.name if m else None for m in obj.data.materials], flush=True)
+
 # Combine the original geometry without changing its shape or vertex positions.
 bpy.ops.object.select_all(action="DESELECT")
 for obj in meshes: obj.select_set(True)
@@ -37,6 +47,40 @@ if len(meshes) > 1:
     bpy.ops.object.join()
 mesh = bpy.context.object
 mesh.name = "OriginalCharacterMesh"
+
+# Diagnose connected geometry islands without changing the mesh.
+import bmesh
+bm = bmesh.new()
+bm.from_mesh(mesh.data)
+bm.verts.ensure_lookup_table()
+seen = set()
+islands = []
+for seed in bm.verts:
+    if seed.index in seen:
+        continue
+    stack = [seed]
+    seen.add(seed.index)
+    component = []
+    while stack:
+        v = stack.pop()
+        component.append(v)
+        for e in v.link_edges:
+            other = e.other_vert(v)
+            if other.index not in seen:
+                seen.add(other.index)
+                stack.append(other)
+    if len(component) >= 20:
+        xs = [v.co.x for v in component]
+        ys = [v.co.y for v in component]
+        zs = [v.co.z for v in component]
+        islands.append((len(component), min(xs), max(xs), min(ys), max(ys), min(zs), max(zs)))
+islands.sort(reverse=True)
+print("CONNECTED_ISLAND_COUNT", len(islands), flush=True)
+for row in islands[:60]:
+    print("CONNECTED_ISLAND", row[0], "bounds",
+          [round(x,5) for x in row[1:]], flush=True)
+bm.free()
+
 
 coords = [v.co.copy() for v in mesh.data.vertices]
 minv = Vector((min(v.x for v in coords), min(v.y for v in coords), min(v.z for v in coords)))
