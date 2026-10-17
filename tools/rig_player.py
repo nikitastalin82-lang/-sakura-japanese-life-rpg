@@ -101,7 +101,36 @@ if height0 > 0:
               "vertices", len(foot_vertices), "toe_offset", round(dx / height0, 4), "center_shift", round(shoe_shift_x / height0, 4), flush=True)
     mesh.data.update()
 
-# Establish dimensions before any region/rig calculations.
+# Measure the actual left/right trouser columns from the source mesh.
+# Use several vertical slices and robust medians so the robe hem and sleeves
+# cannot dictate the leg positions.
+height = maxv.z - minv.z
+if height <= 0:
+    raise RuntimeError("Character has no vertical height on Blender Z axis")
+
+leg_centers = {}
+for side, sign in (("L", 1), ("R", -1)):
+    slice_centers = []
+    for z0, z1 in ((0.28, 0.36), (0.36, 0.44), (0.44, 0.51)):
+        xs = [
+            v.co.x for v in mesh.data.vertices
+            if z0 <= (v.co.z - minv.z) / height <= z1
+            and abs((v.co.x - center.x) / height) < 0.22
+            and ((v.co.x - center.x) * sign) > height * 0.012
+            and abs((v.co.y - center.y) / height) < 0.19
+        ]
+        if len(xs) >= 20:
+            xs.sort()
+            # Median suppresses wide cloth edges and stray vertices.
+            slice_centers.append(xs[len(xs) // 2])
+    if not slice_centers:
+        raise RuntimeError("Could not locate trouser center for leg " + side)
+    leg_centers[side] = sum(slice_centers) / len(slice_centers)
+    print("TROUSER_CENTER", side,
+          round((leg_centers[side] - center.x) / height, 5),
+          "slices", len(slice_centers), flush=True)
+
+
 height = maxv.z - minv.z
 if height <= 0: raise RuntimeError("Character has no vertical height on Blender Z axis")
 
@@ -124,14 +153,14 @@ for side, sign in (("L",1),("R",-1)):
       (f"upper_arm.{side}", p(sign*0.055,0.78), p(sign*0.17,0.63), "chest"),
       (f"forearm.{side}", p(sign*0.17,0.63), p(sign*0.20,0.43), f"upper_arm.{side}"),
       (f"hand.{side}", p(sign*0.20,0.43), p(sign*0.20,0.35), f"forearm.{side}"),
-      # A slightly wider, symmetric neutral stance keeps the knees under the hips
-      # and the feet parallel instead of letting both legs collapse toward center.
-      # Keep each leg chain on one straight vertical centerline. The foot
-      # extends forward on Y; left/right separation comes only from X.
-      (f"thigh.{side}", p(sign*0.035,0.48), p(sign*0.035,0.27), "pelvis"),
-      (f"shin.{side}", p(sign*0.035,0.27), p(sign*0.035,0.07), f"thigh.{side}"),
-      # Foot bone follows the foot's long axis instead of pointing down.
-      (f"foot.{side}", p(sign*0.035,0.07), p(sign*0.035,0.055,0.16), f"shin.{side}"),
+      # Follow measured centers of the two trouser legs, not guessed offsets.
+      (f"thigh.{side}", (leg_centers[side], center.y, minv.z + 0.48*height),
+       (leg_centers[side], center.y, minv.z + 0.27*height), "pelvis"),
+      (f"shin.{side}", (leg_centers[side], center.y, minv.z + 0.27*height),
+       (leg_centers[side], center.y, minv.z + 0.07*height), f"thigh.{side}"),
+      # Foot bone follows the foot's long axis; retain forward toe direction.
+      (f"foot.{side}", (leg_centers[side], center.y, minv.z + 0.07*height),
+       (leg_centers[side], center.y + 0.16*height, minv.z + 0.055*height), f"shin.{side}"),
     ]
 
 arm_data = bpy.data.armatures.new("CharacterRig")
@@ -164,8 +193,10 @@ for i, v in enumerate(mesh.data.vertices):
         # partition, nearest-neighbour weighting can blend the opposite leg
         # into the inner robe and pull the knees/feet diagonally.
         if name.startswith(("thigh", "shin", "foot")):
-            side_sign = 1 if name.endswith(".L") else -1
-            if x * side_sign < 0.012: continue
+            side = "L" if name.endswith(".L") else "R"
+            side_sign = 1 if side == "L" else -1
+            leg_x = (leg_centers[side] - center.x) / height
+            if (x - leg_x) * side_sign < -0.025: continue
         # Keep upper-body cloth attached to the torso instead of the moving legs.
         if name.startswith("thigh") and z > 0.64: continue
         if name.startswith("shin") and z > 0.40: continue
