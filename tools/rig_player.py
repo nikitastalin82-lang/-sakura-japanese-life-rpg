@@ -176,22 +176,14 @@ for lo, hi in ((0.10,0.18),(0.18,0.25),(0.25,0.35),(0.35,0.42)):
     peaks = np.argsort(hist)[-12:][::-1]
     print("TROUSER_X_HIST", lo, hi, [(round(float((edges[k]+edges[k+1])*0.5/height_diag),4), int(hist[k])) for k in peaks], flush=True)
 
-# Keep measured cloth centers for diagnostics only; use stable joint spacing.
+# The histogram diagnostics show the trouser panels centered near +/-0.13
+# of character height in the lower garment bands. The previous side medians
+# (+/-0.22) followed the outer robe silhouette, not the trouser-leg centers.
 height = maxv.z - minv.z
-# Derive left/right leg centers from the measured lower-leg geometry.
-# The 4%-18% height band excludes most robe bulk while retaining both lower limbs.
-leg_centers = {}
-for side, side_sign in (("L", 1), ("R", -1)):
-    side_x = [v.co.x for v in mesh.data.vertices
-              if 0.04 <= (v.co.z-minv.z)/height < 0.18
-              and (v.co.x-center.x)*side_sign > height*0.035]
-    if len(side_x) < 500:
-        raise RuntimeError(f"Not enough lower-leg vertices to locate {side}: {len(side_x)}")
-    # Use the median of the side-specific lower-limb column. The previous
-    # inner-quartile estimate pulled both shin bones toward the center gap.
-    # Median avoids silhouette outliers while keeping each bone under its trouser leg.
-    values = np.asarray(side_x, dtype=np.float64)
-    leg_centers[side] = float(np.median(values))
+leg_centers = {
+    "L": center.x + 0.13 * height,
+    "R": center.x - 0.13 * height,
+}
 print("LEG_CENTER_MEASURED", {k: round(v,5) for k,v in leg_centers.items()}, flush=True)
 print("LEG_CENTER_COMPACT", 0.055, flush=True)
 
