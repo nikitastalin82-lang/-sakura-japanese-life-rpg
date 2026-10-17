@@ -87,34 +87,41 @@ minv = Vector((min(v.x for v in coords), min(v.y for v in coords), min(v.z for v
 maxv = Vector((max(v.x for v in coords), max(v.y for v in coords), max(v.z for v in coords)))
 center = (minv + maxv) * 0.5
 
-# Do not deform the lower mesh by rotating broad vertex selections.
-# The diagnostic found one connected island, so shoes cannot safely be isolated
-# by loose-part separation. Preserve source foot positions until a reliable
-# shoe-only selection is available.
+# Correct only the narrow lowest footwear region.
+# Measurements from the 4% ground band isolate the sandals far better than
+# the old 11% selection, which included lower robe geometry.
 height0 = maxv.z - minv.z
-# Inspect progressively narrower ground-level bands to identify the actual feet.
 import numpy as np
-for band in (0.025, 0.04, 0.06, 0.08, 0.11):
-    for side, sign in (("L", 1), ("R", -1)):
-        subset = [v for v in mesh.data.vertices
-                  if (v.co.z-minv.z)/height0 < band
-                  and (v.co.x-center.x)*sign > height0*0.015]
-        if len(subset) < 10:
-            print("LOW_BAND", band, side, "count", len(subset), flush=True)
-            continue
-        xy = np.asarray([[v.co.x, v.co.y] for v in subset], dtype=np.float64)
-        mean = xy.mean(axis=0)
-        cov = (xy-mean).T @ (xy-mean) / len(xy)
-        vals, vecs = np.linalg.eigh(cov)
-        axis = vecs[:, int(np.argmax(vals))]
-        if axis[1] < 0: axis = -axis
-        print("LOW_BAND", band, side, "count", len(subset),
-              "center", [round(float(x),5) for x in mean],
-              "xy_bounds", [round(float(x),5) for x in xy.min(axis=0)],
-              [round(float(x),5) for x in xy.max(axis=0)],
-              "axis", [round(float(x),4) for x in axis],
-              "angle", round(math.degrees(math.atan2(float(axis[0]),float(axis[1]))),2),
-              flush=True)
+for side, side_sign in (("L", 1), ("R", -1)):
+    shoe_vertices = [
+        v for v in mesh.data.vertices
+        if (v.co.z - minv.z) / height0 < 0.04
+        and (v.co.x - center.x) * side_sign > height0 * 0.015
+    ]
+    if len(shoe_vertices) < 1000:
+        raise RuntimeError(f"Footwear selection too small for {side}: {len(shoe_vertices)}")
+    xy = np.asarray([[v.co.x, v.co.y] for v in shoe_vertices], dtype=np.float64)
+    origin = xy.mean(axis=0)
+    centered = xy - origin
+    cov = centered.T @ centered / len(centered)
+    vals, vecs = np.linalg.eigh(cov)
+    axis = vecs[:, int(np.argmax(vals))]
+    if axis[1] < 0:
+        axis = -axis
+    angle = math.atan2(float(axis[0]), float(axis[1]))
+    delta = -angle
+    ca, sa = math.cos(delta), math.sin(delta)
+    target_x = center.x + side_sign * height0 * 0.055
+    for v in shoe_vertices:
+        x, y = v.co.x - origin[0], v.co.y - origin[1]
+        rx = x*ca - y*sa
+        ry = x*sa + y*ca
+        v.co.x = target_x + rx
+        v.co.y = origin[1] + ry
+    print("FOOTWEAR_CORRECTED", side, "verts", len(shoe_vertices),
+          "rotation_deg", round(math.degrees(delta),2),
+          "shift_x", round(target_x-float(origin[0]),5),
+          "target_x", round(target_x,5), flush=True)
 
 mesh.data.update()
 
