@@ -10,7 +10,7 @@ os.makedirs(os.path.dirname(out), exist_ok=True)
 # armature modifiers. Rebuilding weights from guessed positions caused the
 # fingers/toes to stretch because those weights did not match the real mesh.
 
-bpy.ops.object.select_all(action="SELECT)
+bpy.ops.object.select_all(action="SELECT")
 bpy.ops.object.delete(use_global=False)
 try:
     bpy.ops.import_scene.gltf(filepath=src)
