@@ -76,7 +76,9 @@ characterLoader.load(characterUrl, (gltf) => {
     if (object instanceof THREE.Mesh) {
       object.castShadow = true;
       object.receiveShadow = true;
-      object.frustumCulled = true;
+      // Skinned meshes deform beyond their bind-pose bounds during animation.
+      // Disable frustum culling so toes/fingers are never incorrectly clipped.
+      object.frustumCulled = object instanceof THREE.SkinnedMesh ? false : true;
     }
   });
   player.add(model);
