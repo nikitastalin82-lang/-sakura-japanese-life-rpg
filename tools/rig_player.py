@@ -176,13 +176,12 @@ for lo, hi in ((0.10,0.18),(0.18,0.25),(0.25,0.35),(0.35,0.42)):
     peaks = np.argsort(hist)[-12:][::-1]
     print("TROUSER_X_HIST", lo, hi, [(round(float((edges[k]+edges[k+1])*0.5/height_diag),4), int(hist[k])) for k in peaks], flush=True)
 
-# The histogram diagnostics show the trouser panels centered near +/-0.13
-# of character height in the lower garment bands. The previous side medians
-# (+/-0.22) followed the outer robe silhouette, not the trouser-leg centers.
+# Move each leg chain inward from the earlier positions so the bones sit
+# closer to the middle of each wide trouser panel, away from the outer sides.
 height = maxv.z - minv.z
 leg_centers = {
-    "L": center.x + 0.13 * height,
-    "R": center.x - 0.13 * height,
+    "L": center.x + 0.085 * height,
+    "R": center.x - 0.085 * height,
 }
 print("LEG_CENTER_MEASURED", {k: round(v,5) for k,v in leg_centers.items()}, flush=True)
 print("LEG_CENTER_COMPACT", 0.055, flush=True)
