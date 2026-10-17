@@ -178,10 +178,11 @@ for side, side_sign in (("L", 1), ("R", -1)):
               and (v.co.x-center.x)*side_sign > height*0.035]
     if len(side_x) < 500:
         raise RuntimeError(f"Not enough lower-leg vertices to locate {side}: {len(side_x)}")
-    # The inner quartile is more robust than the extreme silhouette and tracks
-    # the actual trouser/shin column rather than the full garment width.
+    # Use the median of the side-specific lower-limb column. The previous
+    # inner-quartile estimate pulled both shin bones toward the center gap.
+    # Median avoids silhouette outliers while keeping each bone under its trouser leg.
     values = np.asarray(side_x, dtype=np.float64)
-    leg_centers[side] = float(np.quantile(values, 0.35 if side == "L" else 0.65))
+    leg_centers[side] = float(np.median(values))
 print("LEG_CENTER_MEASURED", {k: round(v,5) for k,v in leg_centers.items()}, flush=True)
 print("LEG_CENTER_COMPACT", 0.055, flush=True)
 
