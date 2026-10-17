@@ -171,8 +171,8 @@ mesh.data.update()
 # This identifies the two actual cloth columns instead of using robe-wide medians.
 for lo, hi in ((0.10,0.18),(0.18,0.25),(0.25,0.35),(0.35,0.42)):
     vals = np.asarray([v.co.x-center.x for v in mesh.data.vertices
-                       if lo <= (v.co.z-minv.z)/height < hi], dtype=np.float64)
-    hist, edges = np.histogram(vals, bins=48, range=(-0.36*height_diag,0.36*height))
+                       if lo <= (v.co.z-minv.z)/height_diag < hi], dtype=np.float64)
+    hist, edges = np.histogram(vals, bins=48, range=(-0.36*height_diag,0.36*height_diag))
     peaks = np.argsort(hist)[-12:][::-1]
     print("TROUSER_X_HIST", lo, hi, [(round(float((edges[k]+edges[k+1])*0.5/height_diag),4), int(hist[k])) for k in peaks], flush=True)
 
