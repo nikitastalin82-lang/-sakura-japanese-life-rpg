@@ -87,6 +87,18 @@ minv = Vector((min(v.x for v in coords), min(v.y for v in coords), min(v.z for v
 maxv = Vector((max(v.x for v in coords), max(v.y for v in coords), max(v.z for v in coords)))
 center = (minv + maxv) * 0.5
 
+# Diagnose horizontal anatomy by height bands before assigning leg bones.
+height_diag = maxv.z - minv.z
+for lo, hi in ((0.00,0.04),(0.04,0.08),(0.08,0.12),(0.12,0.18),(0.18,0.25),(0.25,0.35),(0.35,0.48),(0.48,0.62)):
+    band = [v.co.x for v in mesh.data.vertices
+            if lo <= (v.co.z-minv.z)/height_diag < hi]
+    if band:
+        arr = np.asarray(band, dtype=np.float64)
+        print("HEIGHT_X_BAND", lo, hi, "n", len(band),
+              "q05_q25_q50_q75_q95",
+              [round(float(q),5) for q in np.quantile(arr,[.05,.25,.5,.75,.95])],
+              flush=True)
+
 # Preserve original footwear and robe vertex positions. The previous broad
 # low-height selection deformed connected robe/leg geometry and is reverted.
 
