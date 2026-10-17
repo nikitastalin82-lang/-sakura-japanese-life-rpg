@@ -87,41 +87,8 @@ minv = Vector((min(v.x for v in coords), min(v.y for v in coords), min(v.z for v
 maxv = Vector((max(v.x for v in coords), max(v.y for v in coords), max(v.z for v in coords)))
 center = (minv + maxv) * 0.5
 
-# Correct only the narrow lowest footwear region.
-# Measurements from the 4% ground band isolate the sandals far better than
-# the old 11% selection, which included lower robe geometry.
-height0 = maxv.z - minv.z
-import numpy as np
-for side, side_sign in (("L", 1), ("R", -1)):
-    shoe_vertices = [
-        v for v in mesh.data.vertices
-        if (v.co.z - minv.z) / height0 < 0.04
-        and (v.co.x - center.x) * side_sign > height0 * 0.015
-    ]
-    if len(shoe_vertices) < 1000:
-        raise RuntimeError(f"Footwear selection too small for {side}: {len(shoe_vertices)}")
-    xy = np.asarray([[v.co.x, v.co.y] for v in shoe_vertices], dtype=np.float64)
-    origin = xy.mean(axis=0)
-    centered = xy - origin
-    cov = centered.T @ centered / len(centered)
-    vals, vecs = np.linalg.eigh(cov)
-    axis = vecs[:, int(np.argmax(vals))]
-    if axis[1] < 0:
-        axis = -axis
-    angle = math.atan2(float(axis[0]), float(axis[1]))
-    delta = -angle
-    ca, sa = math.cos(delta), math.sin(delta)
-    target_x = center.x + side_sign * height0 * 0.075
-    for v in shoe_vertices:
-        x, y = v.co.x - origin[0], v.co.y - origin[1]
-        rx = x*ca - y*sa
-        ry = x*sa + y*ca
-        v.co.x = target_x + rx
-        v.co.y = origin[1] + ry
-    print("FOOTWEAR_CORRECTED", side, "verts", len(shoe_vertices),
-          "rotation_deg", round(math.degrees(delta),2),
-          "shift_x", round(target_x-float(origin[0]),5),
-          "target_x", round(target_x,5), flush=True)
+# Preserve original footwear and robe vertex positions. The previous broad
+# low-height selection deformed connected robe/leg geometry and is reverted.
 
 mesh.data.update()
 
