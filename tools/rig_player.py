@@ -48,6 +48,9 @@ if len(meshes) > 1:
 mesh = bpy.context.object
 mesh.name = "OriginalCharacterMesh"
 
+# NumPy is used by the read-only topology diagnostics below.
+import numpy as np
+
 # Diagnose connected geometry islands without changing the mesh.
 import bmesh
 bm = bmesh.new()
