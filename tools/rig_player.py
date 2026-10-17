@@ -43,42 +43,46 @@ minv = Vector((min(v.x for v in coords), min(v.y for v in coords), min(v.z for v
 maxv = Vector((max(v.x for v in coords), max(v.y for v in coords), max(v.z for v in coords)))
 center = (minv + maxv) * 0.5
 
-# Measure each foot's actual horizontal long axis from its vertices and
-# rotate it toward the common forward axis. A guessed fixed angle is unreliable
-# because imported characters may have different source orientations.
+# Align each foot from its toe direction, not PCA's ambiguous principal axis.
+# The previous PCA included robe-hem vertices and could select the shoe width.
 height0 = maxv.z - minv.z
 if height0 > 0:
     for side_sign in (1, -1):
+        ankle_x = center.x + side_sign * height0 * 0.05
+        ankle_y = center.y
+        ankle_z = minv.z + height0 * 0.075
+
+        # Keep only the low vertices in a tight box around this ankle.
+        # This excludes the wide robe hem and the opposite shoe.
         foot_vertices = [
             v for v in mesh.data.vertices
-            if (v.co.z - minv.z) / height0 < 0.115
-            and ((v.co.x - center.x) * side_sign) > height0 * 0.018
-            and abs(v.co.x - center.x) > height0 * 0.025
+            if (v.co.z - minv.z) / height0 < 0.145
+            and abs(v.co.x - ankle_x) < height0 * 0.052
+            and abs(v.co.x - center.x) > height0 * 0.018
+            and v.co.y > center.y - height0 * 0.045
         ]
-        if len(foot_vertices) < 20:
-            print("FOOT_AXIS_SKIP", side_sign, len(foot_vertices), flush=True)
+        if len(foot_vertices) < 30:
+            print("FOOT_ALIGNMENT_SKIP", side_sign, len(foot_vertices), flush=True)
             continue
-        xs = [v.co.x for v in foot_vertices]
-        ys = [v.co.y for v in foot_vertices]
-        mx, my = sum(xs)/len(xs), sum(ys)/len(ys)
-        cxx = sum((x-mx)**2 for x in xs) / len(xs)
-        cyy = sum((y-my)**2 for y in ys) / len(ys)
-        cxy = sum((x-mx)*(y-my) for x,y in zip(xs,ys)) / len(xs)
-        # Principal axis angle measured from +X; align it with the Y axis.
-        theta = 0.5 * math.atan2(2.0*cxy, cxx-cyy)
-        candidates = [math.pi/2-theta, -math.pi/2-theta]
-        delta = min(candidates, key=lambda a: abs(a))
-        # Limit correction to avoid rotating a malformed vertex cluster wildly.
-        delta = max(-math.radians(35), min(math.radians(35), delta))
-        ankle_x = center.x + side_sign * height0 * 0.05
-        ankle_y = min(v.co.y for v in foot_vertices) if side_sign == 1 else min(v.co.y for v in foot_vertices)
-        ankle_z = minv.z + height0 * 0.075
+
+        # The toe is the forward (+Y) end of the shoe. Estimate its lateral
+        # offset from the ankle using the foremost 12% of the selected vertices.
+        ys = sorted(v.co.y for v in foot_vertices)
+        toe_threshold = ys[max(0, int(len(ys) * 0.88) - 1)]
+        toe_vertices = [v for v in foot_vertices if v.co.y >= toe_threshold]
+        toe_x = sum(v.co.x for v in toe_vertices) / len(toe_vertices)
+        toe_y = sum(v.co.y for v in toe_vertices) / len(toe_vertices)
+        dx, dy = toe_x - ankle_x, toe_y - ankle_y
+        # Rotate the toe vector onto +Y. Clamp to avoid extreme corrections.
+        delta = -math.atan2(dx, dy)
+        delta = max(-math.radians(40), min(math.radians(40), delta))
         ca, sa = math.cos(delta), math.sin(delta)
         for v in foot_vertices:
-            dx, dy = v.co.x-ankle_x, v.co.y-ankle_y
-            v.co.x = ankle_x + dx*ca - dy*sa
-            v.co.y = ankle_y + dx*sa + dy*ca
-        print("FOOT_AXIS_CORRECTION", side_sign, round(math.degrees(delta),2), "vertices", len(foot_vertices), flush=True)
+            x, y = v.co.x - ankle_x, v.co.y - ankle_y
+            v.co.x = ankle_x + x * ca - y * sa
+            v.co.y = ankle_y + x * sa + y * ca
+        print("FOOT_TOE_ALIGNMENT", side_sign, round(math.degrees(delta), 2),
+              "vertices", len(foot_vertices), "toe_offset", round(dx / height0, 4), flush=True)
     mesh.data.update()
 
 # Establish dimensions before any region/rig calculations.
