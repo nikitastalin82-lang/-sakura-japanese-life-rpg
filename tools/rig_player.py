@@ -53,6 +53,7 @@ import bmesh
 bm = bmesh.new()
 bm.from_mesh(mesh.data)
 bm.verts.ensure_lookup_table()
+bm.verts.index_update()
 seen = set()
 islands = []
 for seed in bm.verts:
@@ -79,6 +80,9 @@ print("CONNECTED_ISLAND_COUNT", len(islands), flush=True)
 for row in islands[:60]:
     print("CONNECTED_ISLAND", row[0], "bounds",
           [round(x,5) for x in row[1:]], flush=True)
+print("MESH_TOPOLOGY_COUNTS", "vertices", len(mesh.data.vertices),
+      "edges", len(mesh.data.edges), "polygons", len(mesh.data.polygons),
+      "bmesh_edges", len(bm.edges), "bmesh_faces", len(bm.faces), flush=True)
 bm.free()
 
 
@@ -376,11 +380,6 @@ for lo, hi in ((0.00,0.08),(0.08,0.18),(0.18,0.30),(0.30,0.42),
           sorted(counts.items(), key=lambda item: item[1], reverse=True), flush=True)
 
 # Confirm whether the imported mesh has topology for connected-component analysis.
-print("MESH_TOPOLOGY_COUNTS", "vertices", len(mesh.data.vertices),
-      "edges", len(mesh.data.edges), "polygons", len(mesh.data.polygons),
-      "bmesh_edges", len(bm.edges) if bm.is_valid else -1,
-      "bmesh_faces", len(bm.faces) if bm.is_valid else -1, flush=True)
-
 mod = mesh.modifiers.new("CharacterSkin", "ARMATURE")
 mod.object = arm
 mesh.parent = arm
