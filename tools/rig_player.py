@@ -272,7 +272,44 @@ for i, v in enumerate(mesh.data.vertices):
     if not distances:
         distances = [(height, "pelvis")]
     distances.sort()
-    nearest = distances[:4]
+
+    # Explicitly bind the lower-leg columns to their own leg chain.
+    # Nearest-four across the entire skeleton allowed pelvis/spine and the
+    # opposite limb to dilute the trouser weights, so use a side-local chain
+    # whenever a vertex is close to that leg's measured centerline.
+    leg_side = None
+    if z < 0.48:
+        for side, side_sign in (("L", 1), ("R", -1)):
+            leg_x = (leg_centers[side] - center.x) / height
+            if (x - leg_x) * side_sign >= -0.035:
+                leg_side = side
+                break
+
+    if leg_side is not None:
+        chain = []
+        for name, a, b in segments:
+            if not name.startswith(("thigh", "shin", "foot")):
+                continue
+            if not name.endswith("." + leg_side):
+                continue
+            ab = b-a
+            t = max(0.0, min(1.0, (point-a).dot(ab) / max(ab.length_squared, 1e-9)))
+            d = (point - (a + t*ab)).length
+            # Do not let the foot bone pull trouser vertices above the ankle.
+            if name.startswith("foot") and z > 0.12:
+                continue
+            # Shin controls the lower trouser; thigh controls the upper section.
+            if name.startswith("shin") and z > 0.43:
+                continue
+            chain.append((d, name))
+        if chain:
+            chain.sort()
+            nearest = chain[:2]
+        else:
+            nearest = distances[:4]
+    else:
+        nearest = distances[:4]
+
     raw = [(name, 1.0 / max(d, height*0.018)**2) for d,name in nearest]
     total = sum(w for _,w in raw)
     for name,w in raw:
