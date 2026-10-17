@@ -91,6 +91,7 @@ center = (minv + maxv) * 0.5
 # The diagnostic found one connected island, so shoes cannot safely be isolated
 # by loose-part separation. Preserve source foot positions until a reliable
 # shoe-only selection is available.
+height0 = maxv.z - minv.z
 # Inspect progressively narrower ground-level bands to identify the actual feet.
 import numpy as np
 for band in (0.025, 0.04, 0.06, 0.08, 0.11):
