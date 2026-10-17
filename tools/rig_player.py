@@ -85,6 +85,21 @@ for side, sign in (("L",1),("R",-1)):
       (f"shin.{side}", p(sign*0.075,0.27), p(sign*0.065,0.07), f"thigh.{side}"),
       (f"foot.{side}", p(sign*0.065,0.07), p(sign*0.065,0.025,0.07), f"shin.{side}"),
     ]
+    # Individually skinned toes, placed across the front of each foot.
+    # The big toe is medial; the little toe is lateral on both mirrored feet.
+    toe_specs = [
+      ("big", -0.023, 0.018),
+      ("02", -0.010, 0.009),
+      ("03",  0.003, 0.000),
+      ("04",  0.016, -0.009),
+      ("05",  0.028, -0.018),
+    ]
+    for toe, offset_x, offset_z in toe_specs:
+        root = p(sign*(0.065+offset_x), 0.038+offset_z, 0.065)
+        middle = p(sign*(0.065+offset_x*1.05), 0.034+offset_z, 0.112)
+        tip = p(sign*(0.065+offset_x*1.10), 0.030+offset_z, 0.151)
+        bones.append((f"toe.{toe}.01.{side}", root, middle, f"foot.{side}"))
+        bones.append((f"toe.{toe}.02.{side}", middle, tip, f"toe.{toe}.01.{side}"))
     # Five individually skinned fingers per hand, with three connected phalanges.
     finger_specs = [
       ("thumb", 0.032, 0.025, (0.032,0.027,0.022), 0.010),
@@ -138,6 +153,17 @@ for i, v in enumerate(mesh.data.vertices):
         if name.startswith("thigh") and z > 0.64: continue
         if name.startswith("shin") and z > 0.40: continue
         if name.startswith("foot") and z > 0.19: continue
+        # Keep the shin out of the forefoot and toes; the ankle is the boundary.
+        if name.startswith("shin") and z < 0.115: continue
+        # Toe bones only affect the low, forward part of their own foot.
+        if name.startswith("toe."):
+            side = 1 if name.endswith(".L") else -1
+            y = (point.y - center.y) / height
+            if z > 0.105 or y < 0.045 or x * side < 0.025: continue
+        # The foot bone should not pull the separated toe tips backward.
+        if name.startswith("foot"):
+            y = (point.y - center.y) / height
+            if y > 0.105 and z < 0.095: continue
         # Arms should affect sleeves and hands, not the chest or central robe.
         if name.startswith(("upper_arm", "forearm", "hand")):
             side = 1 if name.endswith(".L") else -1
@@ -249,6 +275,9 @@ if not any(obj.type == "ARMATURE" for obj in bpy.context.scene.objects):
     raise RuntimeError("Export validation failed: no armature in scene")
 print("RIGGED_EXPORT_OK", out, os.path.getsize(out), flush=True)
 finger_bones = [b.name for b in arm_data.bones if b.name.startswith(("thumb.", "index.", "middle.", "ring.", "pinky."))]
+toe_bones = [b.name for b in arm_data.bones if b.name.startswith("toe.")]
 if len(finger_bones) != 30:
     raise RuntimeError(f"Finger rig validation failed: expected 30 finger bones, found {len(finger_bones)}")
-print("MESH_VERTICES", len(mesh.data.vertices), "BONES", len(arm_data.bones), "FINGER_BONES", len(finger_bones), "ANIMATIONS", [a.name for a in actions], flush=True)
+if len(toe_bones) != 20:
+    raise RuntimeError(f"Toe rig validation failed: expected 20 toe bones, found {len(toe_bones)}")
+print("MESH_VERTICES", len(mesh.data.vertices), "BONES", len(arm_data.bones), "FINGER_BONES", len(finger_bones), "TOE_BONES", len(toe_bones), "ANIMATIONS", [a.name for a in actions], flush=True)
