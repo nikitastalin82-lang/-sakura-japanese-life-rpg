@@ -1,4 +1,5 @@
 import bpy, os
+import numpy as np
 from mathutils import Vector
 
 src = os.environ.get("INPUT_GLB", "player-rigged-beautified.glb")
