@@ -350,9 +350,9 @@ def P(**items):
     return items
 
 idle = make_pose_action("Idle", [
-    (1, P(chest=(0,0,0), head=(0,0,0))),
-    (16, P(chest=(-0.025,0,0), head=(0.015,0,0))),
-    (31, P(chest=(0,0,0), head=(0,0,0))),
+    (1, P(chest=(0,0,0), spine=(0,0,0), head=(0,0,0))),
+    (16, P(chest=(-0.045,0,0), spine=(-0.018,0,0), head=(0.025,0,0))),
+    (31, P(chest=(0,0,0), spine=(0,0,0), head=(0,0,0))),
 ])
 walk_keys = []
 # A one-second alternating gait with bent knees, counter-swinging arms,
@@ -363,10 +363,11 @@ for frame, swing in ((1,0.14),(7,0),(13,-0.14),(19,0),(25,0.14)):
         "thigh.L":(swing,0,0), "thigh.R":(-swing,0,0),
         "shin.L":(max(0,swing)*3.0,0,0), "shin.R":(max(0,-swing)*3.0,0,0),
         "foot.L":(-swing*0.42,0,0), "foot.R":(swing*0.42,0,0),
-        "upper_arm.L":(-swing*0.48,0,0), "upper_arm.R":(swing*0.48,0,0),
-        "forearm.L":(0.06,0,0), "forearm.R":(0.06,0,0),
-        "pelvis":(0,0,swing*0.018), "spine":(0.008,0,-swing*0.018),
-        "chest":(-0.008,0,0)
+        "upper_arm.L":(-swing*1.55,0,0), "upper_arm.R":(swing*1.55,0,0),
+        "forearm.L":(0.16+max(0,-swing)*0.25,0,0), "forearm.R":(0.16+max(0,swing)*0.25,0,0),
+        "hand.L":(-swing*0.22,0,0), "hand.R":(swing*0.22,0,0),
+        "pelvis":(0,0,swing*0.055), "spine":(0.025,0,-swing*0.045),
+        "chest":(-0.035,0,0), "neck":(0,0,-swing*0.04), "head":(0,0,swing*0.025)
     })))
 walk = make_pose_action("Walk", walk_keys)
 run_keys = []
@@ -375,10 +376,11 @@ for frame, swing in ((1,0.28),(7,0),(13,-0.28),(19,0),(25,0.28)):
         "thigh.L":(swing,0,0), "thigh.R":(-swing,0,0),
         "shin.L":(max(0,swing)*2.5,0,0), "shin.R":(max(0,-swing)*2.5,0,0),
         "foot.L":(-swing*0.38,0,0), "foot.R":(swing*0.38,0,0),
-        "upper_arm.L":(-swing*0.92,0,0), "upper_arm.R":(swing*0.92,0,0),
-        "forearm.L":(0.22,0,0), "forearm.R":(0.22,0,0),
-        "pelvis":(0,0,swing*0.055), "spine":(0.055,0,-swing*0.04),
-        "chest":(-0.035,0,0)
+        "upper_arm.L":(-swing*1.75,0,0), "upper_arm.R":(swing*1.75,0,0),
+        "forearm.L":(0.28+max(0,-swing)*0.35,0,0), "forearm.R":(0.28+max(0,swing)*0.35,0,0),
+        "hand.L":(-swing*0.3,0,0), "hand.R":(swing*0.3,0,0),
+        "pelvis":(0,0,swing*0.10), "spine":(0.085,0,-swing*0.075),
+        "chest":(-0.06,0,0), "neck":(0,0,-swing*0.06), "head":(0,0,swing*0.035)
     })))
 run = make_pose_action("Run", run_keys)
 turn = make_pose_action("Turn", [
