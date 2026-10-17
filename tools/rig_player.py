@@ -357,7 +357,7 @@ for v in mesh.data.vertices:
             weight_totals[name] += membership.weight
             weight_vertices[name] += 1
 print("WEIGHT_GROUP_TOTALS", sorted(
-    [(name, round(total, 3), count) for name, total in weight_totals.items()],
+    [(name, round(total, 3), weight_vertices[name]) for name, total in weight_totals.items()],
     key=lambda row: row[1], reverse=True), flush=True)
 for lo, hi in ((0.00,0.08),(0.08,0.18),(0.18,0.30),(0.30,0.42),
                (0.42,0.52),(0.52,0.64),(0.64,0.78),(0.78,0.90),(0.90,1.00)):
