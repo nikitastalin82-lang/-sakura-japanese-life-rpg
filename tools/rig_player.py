@@ -47,6 +47,66 @@ for mesh in meshes:
 if not skinned_meshes:
     raise RuntimeError("Original mesh weights/armature connection were not preserved")
 
+# Diagnostics: inspect the original foot/ankle skinning and disconnected mesh islands.
+for obj in skinned_meshes:
+    verts = obj.data.vertices
+    print("DIAG_MESH", obj.name, "VERTICES", len(verts), "GROUPS", len(obj.vertex_groups), flush=True)
+    group_by_index = {g.index: g.name for g in obj.vertex_groups}
+    for group in obj.vertex_groups:
+        if group.name.lower().startswith(("foot", "shin", "thigh", "toe")):
+            weighted = []
+            total_weight = 0.0
+            for v in verts:
+                for a in v.groups:
+                    if a.group == group.index and a.weight > 0.02:
+                        weighted.append(v.co)
+                        total_weight += a.weight
+            if weighted:
+                xs = [v.x for v in weighted]; ys = [v.y for v in weighted]; zs = [v.z for v in weighted]
+                print("DIAG_GROUP", group.name, "COUNT", len(weighted), "WEIGHT_SUM", round(total_weight,2),
+                      "BOUNDS", tuple(round(min(a),4) for a in (xs,ys,zs)),
+                      tuple(round(max(a),4) for a in (xs,ys,zs)), flush=True)
+            else:
+                print("DIAG_GROUP", group.name, "COUNT", 0, flush=True)
+
+    # Union-find over polygon edges reveals detached shoe/sole/toe geometry islands.
+    parent = list(range(len(verts)))
+    rank = bytearray(len(verts))
+    def find_root(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+    def join_vertices(a,b):
+        ra, rb = find_root(a), find_root(b)
+        if ra == rb: return
+        if rank[ra] < rank[rb]: ra,rb = rb,ra
+        parent[rb] = ra
+        if rank[ra] == rank[rb]: rank[ra] += 1
+    for poly in obj.data.polygons:
+        ids = poly.vertices
+        for k in range(1, len(ids)):
+            join_vertices(ids[0], ids[k])
+    components = {}
+    for v in verts:
+        root = find_root(v.index)
+        components.setdefault(root, []).append(v.index)
+    major = sorted((ids for ids in components.values() if len(ids) >= 30), key=len, reverse=True)
+    print("DIAG_COMPONENTS", "TOTAL", len(components), "OVER_30_VERTS", len(major), flush=True)
+    for ci, ids in enumerate(major[:35]):
+        points = [verts[i].co for i in ids]
+        xs = [v.x for v in points]; ys = [v.y for v in points]; zs = [v.z for v in points]
+        sums = {}
+        for vi in ids:
+            for a in verts[vi].groups:
+                name = group_by_index.get(a.group, "")
+                if name: sums[name] = sums.get(name, 0.0) + a.weight
+        dominant = sorted(sums.items(), key=lambda x:x[1], reverse=True)[:5]
+        print("DIAG_ISLAND", ci, "VERTS", len(ids),
+              "BOUNDS", tuple(round(min(a),4) for a in (xs,ys,zs)),
+              tuple(round(max(a),4) for a in (xs,ys,zs)),
+              "GROUPS", [(n,round(w,1)) for n,w in dominant], flush=True)
+
 # Create animation clips on the original bones. Fingers and toes remain part
 # of their correctly weighted original hand/foot regions instead of being
 # assigned speculative extra bones that stretch the mesh.
