@@ -87,6 +87,7 @@ minv = Vector((min(v.x for v in coords), min(v.y for v in coords), min(v.z for v
 maxv = Vector((max(v.x for v in coords), max(v.y for v in coords), max(v.z for v in coords)))
 center = (minv + maxv) * 0.5
 
+import numpy as np
 # Diagnose horizontal anatomy by height bands before assigning leg bones.
 height_diag = maxv.z - minv.z
 for lo, hi in ((0.00,0.04),(0.04,0.08),(0.08,0.12),(0.12,0.18),(0.18,0.25),(0.25,0.35),(0.35,0.48),(0.48,0.62)):
