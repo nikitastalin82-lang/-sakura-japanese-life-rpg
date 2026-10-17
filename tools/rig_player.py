@@ -91,6 +91,30 @@ center = (minv + maxv) * 0.5
 # The diagnostic found one connected island, so shoes cannot safely be isolated
 # by loose-part separation. Preserve source foot positions until a reliable
 # shoe-only selection is available.
+# Inspect progressively narrower ground-level bands to identify the actual feet.
+import numpy as np
+for band in (0.025, 0.04, 0.06, 0.08, 0.11):
+    for side, sign in (("L", 1), ("R", -1)):
+        subset = [v for v in mesh.data.vertices
+                  if (v.co.z-minv.z)/height0 < band
+                  and (v.co.x-center.x)*sign > height0*0.015]
+        if len(subset) < 10:
+            print("LOW_BAND", band, side, "count", len(subset), flush=True)
+            continue
+        xy = np.asarray([[v.co.x, v.co.y] for v in subset], dtype=np.float64)
+        mean = xy.mean(axis=0)
+        cov = (xy-mean).T @ (xy-mean) / len(xy)
+        vals, vecs = np.linalg.eigh(cov)
+        axis = vecs[:, int(np.argmax(vals))]
+        if axis[1] < 0: axis = -axis
+        print("LOW_BAND", band, side, "count", len(subset),
+              "center", [round(float(x),5) for x in mean],
+              "xy_bounds", [round(float(x),5) for x in xy.min(axis=0)],
+              [round(float(x),5) for x in xy.max(axis=0)],
+              "axis", [round(float(x),4) for x in axis],
+              "angle", round(math.degrees(math.atan2(float(axis[0]),float(axis[1]))),2),
+              flush=True)
+
 mesh.data.update()
 
 # Keep measured cloth centers for diagnostics only; use stable joint spacing.
