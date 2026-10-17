@@ -309,10 +309,16 @@ for i, v in enumerate(mesh.data.vertices):
             nearest = chain[:2]
         else:
             nearest = distances[:4]
+    elif abs(x) < 0.115 and 0.34 <= z <= 0.88:
+        # The middle of the robe must be driven by the torso chain, not by
+        # distant arm/leg joints. Blend pelvis, spine and chest so the whole
+        # central cloth follows the animated body instead of staying rigid.
+        torso = [(d, name) for d, name in distances
+                 if name in ("pelvis", "spine", "chest", "neck", "head")]
+        torso.sort()
+        nearest = torso[:3] if torso else distances[:2]
     else:
-        # Keep the torso/head/sleeve skinning local. Four-way blending lets
-        # distant joints tug the same cloth panel in different directions,
-        # which looks like stretched, fixed-to-moving geometry in motion.
+        # Keep sleeves and outer cloth local to their nearest joints.
         nearest = distances[:2]
 
     raw = [(name, 1.0 / max(d, height*0.025)**2) for d,name in nearest]
