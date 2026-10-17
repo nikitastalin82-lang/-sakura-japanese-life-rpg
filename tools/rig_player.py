@@ -107,7 +107,20 @@ mesh.data.update()
 
 # Keep measured cloth centers for diagnostics only; use stable joint spacing.
 height = maxv.z - minv.z
-leg_centers = {"L": center.x + height*0.055, "R": center.x - height*0.055}
+# Derive left/right leg centers from the measured lower-leg geometry.
+# The 4%-18% height band excludes most robe bulk while retaining both lower limbs.
+leg_centers = {}
+for side, side_sign in (("L", 1), ("R", -1)):
+    side_x = [v.co.x for v in mesh.data.vertices
+              if 0.04 <= (v.co.z-minv.z)/height < 0.18
+              and (v.co.x-center.x)*side_sign > height*0.035]
+    if len(side_x) < 500:
+        raise RuntimeError(f"Not enough lower-leg vertices to locate {side}: {len(side_x)}")
+    # The inner quartile is more robust than the extreme silhouette and tracks
+    # the actual trouser/shin column rather than the full garment width.
+    values = np.asarray(side_x, dtype=np.float64)
+    leg_centers[side] = float(np.quantile(values, 0.35 if side == "L" else 0.65))
+print("LEG_CENTER_MEASURED", {k: round(v,5) for k,v in leg_centers.items()}, flush=True)
 print("LEG_CENTER_COMPACT", 0.055, flush=True)
 
 height = maxv.z - minv.z
