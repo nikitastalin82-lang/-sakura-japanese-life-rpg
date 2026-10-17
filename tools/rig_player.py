@@ -94,6 +94,49 @@ for obj in skinned_meshes:
               "BAND", (round(start_z,5),round(end_z,5)),
               "VERTICES", changed, "TRANSFERRED_WEIGHT", round(moved_weight,2), flush=True)
 
+# Diagnose toe/shoe skinning without guessing or changing the source weights.
+# The foot bone's head-to-tail axis identifies the distal foot region.
+for obj in skinned_meshes:
+    arm_inverse = arm.matrix_world.inverted()
+    for side in ("L", "R"):
+        bone = arm.data.bones[f"foot.{side}"]
+        foot_group = obj.vertex_groups.get(f"foot.{side}")
+        shin_group = obj.vertex_groups.get(f"shin.{side}")
+        axis = bone.tail_local - bone.head_local
+        length = axis.length
+        if length < 1e-6:
+            print("FOOT_DIAGNOSTIC", side, "INVALID_BONE_LENGTH", flush=True)
+            continue
+        axis.normalize()
+        rows = []
+        for vertex in obj.data.vertices:
+            point = arm_inverse @ (obj.matrix_world @ vertex.co)
+            along = (point - bone.head_local).dot(axis) / length
+            try:
+                fw = foot_group.weight(vertex.index)
+            except RuntimeError:
+                fw = 0.0
+            try:
+                sw = shin_group.weight(vertex.index)
+            except RuntimeError:
+                sw = 0.0
+            if along >= 0.45:
+                rows.append((along, fw, sw, point.copy(), vertex.index))
+        rows.sort(key=lambda x: x[0])
+        if rows:
+            distal = [r for r in rows if r[0] >= 0.70]
+            avg_foot = sum(r[1] for r in distal) / max(1, len(distal))
+            no_foot = sum(1 for r in distal if r[1] < 0.05)
+            print("FOOT_DIAGNOSTIC", side,
+                  "HEAD", tuple(round(v,4) for v in bone.head_local),
+                  "TAIL", tuple(round(v,4) for v in bone.tail_local),
+                  "DISTAL_VERTICES", len(distal),
+                  "DISTAL_AVG_FOOT_WEIGHT", round(avg_foot,4),
+                  "DISTAL_NO_FOOT_WEIGHT", no_foot,
+                  "SAMPLES", [(r[4], round(r[0],3), round(r[1],3), round(r[2],3),
+                              tuple(round(v,3) for v in r[3])) for r in distal[::max(1,len(distal)//8)][:8]],
+                  flush=True)
+
 # Create animation clips on the original bones. Fingers and toes remain part
 # of their correctly weighted original hand/foot regions instead of being
 # assigned speculative extra bones that stretch the mesh.
