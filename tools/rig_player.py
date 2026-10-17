@@ -253,10 +253,7 @@ for i, v in enumerate(mesh.data.vertices):
             side = "L" if name.endswith(".L") else "R"
             side_sign = 1 if side == "L" else -1
             leg_x = (leg_centers[side] - center.x) / height
-            # Only vertices close to that leg's measured column may inherit
-            # its weights. The old one-sided test also classified the entire
-            # center of the robe as the right leg, stretching the cloth.
-            if abs(x - leg_x) > 0.070: continue
+            if (x - leg_x) * side_sign < -0.025: continue
         # Keep upper-body cloth attached to the torso instead of the moving legs.
         if name.startswith("thigh") and z > 0.64: continue
         if name.startswith("shin") and z > 0.40: continue
@@ -283,16 +280,11 @@ for i, v in enumerate(mesh.data.vertices):
     # its upper half incorrectly stays attached to the torso.
     leg_side = None
     if z < 0.60:
-        # Assign a vertex to a leg only when it lies inside that leg's
-        # narrow spatial corridor. Everything between the two columns stays
-        # on the pelvis/spine/chest instead of being pulled by one knee.
-        candidates = [
-            (abs(x - (leg_centers[side] - center.x) / height), side)
-            for side in ("L", "R")
-        ]
-        distance_to_leg, nearest_side = min(candidates)
-        if distance_to_leg <= 0.070:
-            leg_side = nearest_side
+        for side, side_sign in (("L", 1), ("R", -1)):
+            leg_x = (leg_centers[side] - center.x) / height
+            if (x - leg_x) * side_sign >= -0.035:
+                leg_side = side
+                break
 
     arm_side = None
     if 0.30 <= z <= 0.86 and abs(x) >= 0.045:
