@@ -7,7 +7,7 @@ on:
     paths:
       - "tools/rig_player.py"
       - ".github/workflows/rig-player-fixed.yml"
-      - "anime_man_traditional_robe.glb"
+      - "player-rigged-beautified.glb"
 
 permissions:
   contents: write
@@ -35,12 +35,12 @@ jobs:
 
       - name: Verify source model
         run: |
-          test -s "anime_man_traditional_robe.glb"
+          test -s "player-rigged-beautified.glb"
           mkdir -p public/models
 
       - name: Rig and validate model
         env:
-          INPUT_GLB: anime_man_traditional_robe.glb
+          INPUT_GLB: player-rigged-beautified.glb
           OUTPUT_GLB: /tmp/player-rigged.glb
         run: |
           set -euo pipefail
