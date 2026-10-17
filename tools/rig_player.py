@@ -114,6 +114,21 @@ for lo, hi in ((0.00,0.02),(0.02,0.04),(0.04,0.06),(0.06,0.08),(0.08,0.10)):
                   "q05_q25_q50_q75_q95_xyz",
                   [[round(float(x),5) for x in row] for row in qs], flush=True)
 
+# Fit the horizontal long axis of the lowermost footwear candidates.
+# This is diagnostic only; it does not alter any vertices.
+for side, side_sign in (("L", 1), ("R", -1)):
+    pts = [[v.co.x, v.co.y] for v in mesh.data.vertices
+           if 0.0 <= (v.co.z-minv.z)/height_diag < 0.04
+           and (v.co.x-center.x)*side_sign > height_diag*0.025]
+    arr = np.asarray(pts, dtype=np.float64)
+    cov = np.cov(arr.T)
+    vals, vecs = np.linalg.eigh(cov)
+    axis = vecs[:, int(np.argmax(vals))]
+    print("FOOT_AXIS_PCA", side, "center_xy",
+          [round(float(x),5) for x in arr.mean(axis=0)],
+          "eigenvalues", [round(float(x),7) for x in vals],
+          "long_axis_xy", [round(float(x),6) for x in axis], flush=True)
+
 # Preserve original footwear and robe vertex positions. The previous broad
 # low-height selection deformed connected robe/leg geometry and is reverted.
 
