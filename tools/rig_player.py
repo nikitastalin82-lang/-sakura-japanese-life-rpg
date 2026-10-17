@@ -100,6 +100,20 @@ for lo, hi in ((0.00,0.04),(0.04,0.08),(0.08,0.12),(0.12,0.18),(0.18,0.25),(0.25
               [round(float(q),5) for q in np.quantile(arr,[.05,.25,.5,.75,.95])],
               flush=True)
 
+# FOOTWEAR DIAGNOSTICS ONLY: inspect each low-height side region in XYZ.
+# No vertex coordinates are modified in this pass.
+for lo, hi in ((0.00,0.02),(0.02,0.04),(0.04,0.06),(0.06,0.08),(0.08,0.10)):
+    for side, side_sign in (("L", 1), ("R", -1)):
+        pts = [v.co for v in mesh.data.vertices
+               if lo <= (v.co.z-minv.z)/height_diag < hi
+               and (v.co.x-center.x)*side_sign > height_diag*0.025]
+        if pts:
+            arr = np.asarray([[p.x, p.y, p.z] for p in pts], dtype=np.float64)
+            qs = np.quantile(arr, [0.05, 0.25, 0.50, 0.75, 0.95], axis=0)
+            print("FOOT_REGION", side, lo, hi, "n", len(pts),
+                  "q05_q25_q50_q75_q95_xyz",
+                  [[round(float(x),5) for x in row] for row in qs], flush=True)
+
 # Preserve original footwear and robe vertex positions. The previous broad
 # low-height selection deformed connected robe/leg geometry and is reverted.
 
