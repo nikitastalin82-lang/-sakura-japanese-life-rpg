@@ -85,6 +85,24 @@ print("MESH_TOPOLOGY_COUNTS", "vertices", len(mesh.data.vertices),
       "bmesh_edges", len(bm.edges), "bmesh_faces", len(bm.faces), flush=True)
 bm.free()
 
+# READ-ONLY POSITION-WELD DIAGNOSTICS:
+# Count coincident vertices without merging them or changing UV/material seams.
+raw_xyz = np.asarray([tuple(v.co) for v in mesh.data.vertices], dtype=np.float64)
+for decimals in (7, 5, 4):
+    quantized = np.round(raw_xyz, decimals=decimals)
+    unique_xyz, multiplicities = np.unique(quantized, axis=0, return_counts=True)
+    repeated = multiplicities[multiplicities > 1]
+    print("COINCIDENT_VERTEX_DIAGNOSTICS", "decimals", decimals,
+          "unique_positions", len(unique_xyz),
+          "duplicate_vertex_excess", len(raw_xyz)-len(unique_xyz),
+          "positions_repeated", len(repeated),
+          "max_multiplicity", int(repeated.max()) if len(repeated) else 1,
+          flush=True)
+print("AXIS_QUANTILES_XYZ", [
+    [round(float(q),5) for q in np.quantile(raw_xyz[:,axis], [0,.05,.25,.5,.75,.95,1])]
+    for axis in range(3)], flush=True)
+
+
 
 coords = [v.co.copy() for v in mesh.data.vertices]
 minv = Vector((min(v.x for v in coords), min(v.y for v in coords), min(v.z for v in coords)))
