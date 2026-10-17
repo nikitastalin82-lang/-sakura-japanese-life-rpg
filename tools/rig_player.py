@@ -6,7 +6,7 @@ try:
 except ImportError as exc:
     raise RuntimeError("NumPy is missing from Blender Python; install the matching NumPy wheel in the workflow") from exc
 
-src = os.environ.get("INPUT_GLB", "anime_man_traditional_robe.glb")
+src = os.environ.get("INPUT_GLB", "player-rigged-beautified.glb")
 out = os.environ.get("OUTPUT_GLB", "public/models/player-rigged.glb")
 os.makedirs(os.path.dirname(out), exist_ok=True)
 
@@ -22,7 +22,20 @@ meshes = [o for o in bpy.context.scene.objects if o.type == "MESH"]
 if not meshes:
     raise RuntimeError("GLB contains no mesh objects")
 
-# Bake imported transforms into the mesh so the armature and vertex weights share one coordinate space.
+# The input is already rigged. Preserve each mesh's world transform, then remove
+# its old skin modifier, parent and groups before rebuilding a clean, extended rig.
+old_armatures = [o for o in bpy.context.scene.objects if o.type == "ARMATURE"]
+for obj in meshes:
+    world = obj.matrix_world.copy()
+    for modifier in list(obj.modifiers):
+        if modifier.type == "ARMATURE":
+            obj.modifiers.remove(modifier)
+    obj.parent = None
+    obj.matrix_world = world
+for old_arm in old_armatures:
+    bpy.data.objects.remove(old_arm, do_unlink=True)
+
+# Bake imported transforms into the mesh so the new armature and weights share one space.
 for obj in meshes:
     bpy.context.view_layer.objects.active = obj
     obj.select_set(True)
@@ -66,6 +79,34 @@ for side, sign in (("L",1),("R",-1)):
       (f"upper_arm.{side}", p(sign*0.055,0.78), p(sign*0.17,0.63), "chest"),
       (f"forearm.{side}", p(sign*0.17,0.63), p(sign*0.20,0.43), f"upper_arm.{side}"),
       (f"hand.{side}", p(sign*0.20,0.43), p(sign*0.20,0.35), f"forearm.{side}"),
+      # Five individually skinned fingers per hand. The slight splay and curved
+      # phalanges prevent the fingers from collapsing into one solid mitten.
+      *[
+        (f"{digit}.{part:02d}.{side}", head, tail, parent)
+        for digit, base_x, base_y, lengths, spread in [
+          ("thumb", 0.032, 0.025, (0.032,0.027,0.022), 0.010),
+          ("index", 0.020, -0.010, (0.030,0.027,0.023), 0.004),
+          ("middle", 0.006, -0.006, (0.032,0.029,0.025), 0.000),
+          ("ring", -0.009, 0.000, (0.030,0.027,0.023), -0.003),
+          ("pinky", -0.023, 0.008, (0.026,0.023,0.020), -0.007),
+        ]
+        for part, (head, tail, parent) in enumerate([
+          (
+            p(sign*(0.20+base_x), 0.365, base_y),
+            p(sign*(0.20+base_x+spread*0.35), 0.365-lengths[0], base_y+0.004),
+            f"hand.{side}" if part == 0 else f"{digit}.{part:02d}.{side}"
+          ) if part == 0 else (
+            p(sign*(0.20+base_x+spread*0.35), 0.365-lengths[0], base_y+0.004),
+            p(sign*(0.20+base_x+spread*0.65), 0.365-lengths[0]-lengths[1], base_y+0.008),
+            f"{digit}.{part:02d}.{side}"
+          ) if part == 1 else (
+            p(sign*(0.20+base_x+spread*0.65), 0.365-lengths[0]-lengths[1], base_y+0.008),
+            p(sign*(0.20+base_x+spread), 0.365-sum(lengths), base_y+0.012),
+            f"{digit}.{part:02d}.{side}"
+          )
+          for part in range(3)
+        ])
+      ],
       # A slightly wider, symmetric neutral stance keeps the knees under the hips
       # and the feet parallel instead of letting both legs collapse toward center.
       (f"thigh.{side}", p(sign*0.065,0.48), p(sign*0.075,0.27), "pelvis"),
@@ -89,8 +130,12 @@ for name, head, tail, parent in bones:
     if parent: edit[name].parent = edit[parent]
 bpy.ops.object.mode_set(mode="OBJECT")
 
-# Region-aware smooth skinning. A single-piece robe must not inherit leg
-# weights across the whole skirt: limit limb influence to its actual region.
+# Region-aware smooth skinning. Remove source groups so old hand-only weights
+# cannot compete with the new per-finger weights.
+while mesh.vertex_groups:
+    mesh.vertex_groups.remove(mesh.vertex_groups[0])
+
+# A single-piece robe must not inherit leg weights across the whole skirt.
 segments = [(name, Vector(h), Vector(t)) for name,h,t,parent in bones if name != "root"]
 groups = {name: mesh.vertex_groups.new(name=name) for name,_,_ in segments}
 for i, v in enumerate(mesh.data.vertices):
@@ -106,7 +151,11 @@ for i, v in enumerate(mesh.data.vertices):
         # Arms should affect sleeves and hands, not the chest or central robe.
         if name.startswith(("upper_arm", "forearm", "hand")):
             side = 1 if name.endswith(".L") else -1
-            if z < 0.30 or x * side < 0.045: continue
+            if z < 0.27 or x * side < 0.045: continue
+        # Finger bones only influence the hand-tip region on their own side.
+        if name.startswith(("thumb.", "index.", "middle.", "ring.", "pinky.")):
+            side = 1 if name.endswith(".L") else -1
+            if z > 0.405 or x * side < 0.135: continue
         if name == "head" and z < 0.78: continue
         if name == "neck" and z < 0.68: continue
         ab = b-a
@@ -209,4 +258,7 @@ if not os.path.isfile(out) or os.path.getsize(out) < 1024:
 if not any(obj.type == "ARMATURE" for obj in bpy.context.scene.objects):
     raise RuntimeError("Export validation failed: no armature in scene")
 print("RIGGED_EXPORT_OK", out, os.path.getsize(out), flush=True)
-print("MESH_VERTICES", len(mesh.data.vertices), "BONES", len(arm_data.bones), "ANIMATIONS", [a.name for a in actions], flush=True)
+finger_bones = [b.name for b in arm_data.bones if b.name.startswith(("thumb.", "index.", "middle.", "ring.", "pinky."))]
+if len(finger_bones) != 30:
+    raise RuntimeError(f"Finger rig validation failed: expected 30 finger bones, found {len(finger_bones)}")
+print("MESH_VERTICES", len(mesh.data.vertices), "BONES", len(arm_data.bones), "FINGER_BONES", len(finger_bones), "ANIMATIONS", [a.name for a in actions], flush=True)
