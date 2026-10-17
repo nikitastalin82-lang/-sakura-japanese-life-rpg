@@ -107,6 +107,35 @@ for obj in skinned_meshes:
               tuple(round(max(a),4) for a in (xs,ys,zs)),
               "GROUPS", [(n,round(w,1)) for n,w in dominant], flush=True)
 
+
+# Compare skin weights at coincident triangle-soup vertices. These duplicates
+# should deform identically across polygon boundaries, including UV seams.
+for obj in skinned_meshes:
+    buckets = {}
+    for v in obj.data.vertices:
+        key = (round(v.co.x, 5), round(v.co.y, 5), round(v.co.z, 5))
+        weights = {a.group: a.weight for a in v.groups}
+        item = buckets.setdefault(key, {"ids": [], "sum": {}, "count": 0, "minmax": {}})
+        item["ids"].append(v.index)
+        item["count"] += 1
+        for gi, w in weights.items():
+            item["sum"][gi] = item["sum"].get(gi, 0.0) + w
+            lo, hi = item["minmax"].get(gi, (w,w))
+            item["minmax"][gi] = (min(lo,w), max(hi,w))
+    repeated = [v for v in buckets.values() if v["count"] > 1]
+    mismatched = []
+    for item in repeated:
+        divergence = max((hi-lo for lo,hi in item["minmax"].values()), default=0.0)
+        if divergence > 0.05:
+            mismatched.append((item, divergence))
+    print("DIAG_DUPLICATE_POSITIONS", "UNIQUE", len(buckets), "REPEATED_GROUPS", len(repeated),
+          "VERTICES_IN_REPEATS", sum(x["count"] for x in repeated),
+          "WEIGHT_MISMATCH_GROUPS", len(mismatched), flush=True)
+    for item, divergence in sorted(mismatched, key=lambda x:x[1], reverse=True)[:20]:
+        avg = {group_by_index.get(gi,str(gi)): round(w/item["count"],3) for gi,w in item["sum"].items()}
+        print("DIAG_WEIGHT_SEAM", "COUNT", item["count"], "MAX_DELTA", round(divergence,3),
+              "AVERAGE", avg, flush=True)
+
 # Create animation clips on the original bones. Fingers and toes remain part
 # of their correctly weighted original hand/foot regions instead of being
 # assigned speculative extra bones that stretch the mesh.
