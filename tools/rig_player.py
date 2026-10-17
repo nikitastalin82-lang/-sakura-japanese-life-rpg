@@ -79,40 +79,30 @@ for side, sign in (("L",1),("R",-1)):
       (f"upper_arm.{side}", p(sign*0.055,0.78), p(sign*0.17,0.63), "chest"),
       (f"forearm.{side}", p(sign*0.17,0.63), p(sign*0.20,0.43), f"upper_arm.{side}"),
       (f"hand.{side}", p(sign*0.20,0.43), p(sign*0.20,0.35), f"forearm.{side}"),
-      # Five individually skinned fingers per hand. The slight splay and curved
-      # phalanges prevent the fingers from collapsing into one solid mitten.
-      *[
-        (f"{digit}.{part:02d}.{side}", head, tail, parent)
-        for digit, base_x, base_y, lengths, spread in [
-          ("thumb", 0.032, 0.025, (0.032,0.027,0.022), 0.010),
-          ("index", 0.020, -0.010, (0.030,0.027,0.023), 0.004),
-          ("middle", 0.006, -0.006, (0.032,0.029,0.025), 0.000),
-          ("ring", -0.009, 0.000, (0.030,0.027,0.023), -0.003),
-          ("pinky", -0.023, 0.008, (0.026,0.023,0.020), -0.007),
-        ]
-        for part, (head, tail, parent) in enumerate([
-          (
-            p(sign*(0.20+base_x), 0.365, base_y),
-            p(sign*(0.20+base_x+spread*0.35), 0.365-lengths[0], base_y+0.004),
-            f"hand.{side}" if part == 0 else f"{digit}.{part:02d}.{side}"
-          ) if part == 0 else (
-            p(sign*(0.20+base_x+spread*0.35), 0.365-lengths[0], base_y+0.004),
-            p(sign*(0.20+base_x+spread*0.65), 0.365-lengths[0]-lengths[1], base_y+0.008),
-            f"{digit}.{part:02d}.{side}"
-          ) if part == 1 else (
-            p(sign*(0.20+base_x+spread*0.65), 0.365-lengths[0]-lengths[1], base_y+0.008),
-            p(sign*(0.20+base_x+spread), 0.365-sum(lengths), base_y+0.012),
-            f"{digit}.{part:02d}.{side}"
-          )
-          for part in range(3)
-        ])
-      ],
       # A slightly wider, symmetric neutral stance keeps the knees under the hips
       # and the feet parallel instead of letting both legs collapse toward center.
       (f"thigh.{side}", p(sign*0.065,0.48), p(sign*0.075,0.27), "pelvis"),
       (f"shin.{side}", p(sign*0.075,0.27), p(sign*0.065,0.07), f"thigh.{side}"),
       (f"foot.{side}", p(sign*0.065,0.07), p(sign*0.065,0.025,0.07), f"shin.{side}"),
     ]
+    # Five individually skinned fingers per hand, with three connected phalanges.
+    finger_specs = [
+      ("thumb", 0.032, 0.025, (0.032,0.027,0.022), 0.010),
+      ("index", 0.020, -0.010, (0.030,0.027,0.023), 0.004),
+      ("middle", 0.006, -0.006, (0.032,0.029,0.025), 0.000),
+      ("ring", -0.009, 0.000, (0.030,0.027,0.023), -0.003),
+      ("pinky", -0.023, 0.008, (0.026,0.023,0.020), -0.007),
+    ]
+    for digit, base_x, base_y, lengths, spread in finger_specs:
+        points = [
+            p(sign*(0.20+base_x), 0.365, base_y),
+            p(sign*(0.20+base_x+spread*0.35), 0.365-lengths[0], base_y+0.004),
+            p(sign*(0.20+base_x+spread*0.65), 0.365-lengths[0]-lengths[1], base_y+0.008),
+            p(sign*(0.20+base_x+spread), 0.365-sum(lengths), base_y+0.012),
+        ]
+        parents = [f"hand.{side}", f"{digit}.01.{side}", f"{digit}.02.{side}"]
+        for segment in range(3):
+            bones.append((f"{digit}.{segment+1:02d}.{side}", points[segment], points[segment+1], parents[segment]))
 
 arm_data = bpy.data.armatures.new("CharacterRig")
 arm = bpy.data.objects.new("CharacterRig", arm_data)
