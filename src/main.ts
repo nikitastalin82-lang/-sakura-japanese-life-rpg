@@ -38,14 +38,30 @@ const characterActions = new Map<string, THREE.AnimationAction>();
 let activeCharacterAnimation = '';
 let turnAnimationTimer = 0;
 let previousPlayerYaw = player.rotation.y;
-function playCharacterAnimation(name: string) {
-  if (activeCharacterAnimation === name) return;
-  const next = characterActions.get(name);
-  if (!next) return;
+const animationAliases: Record<string, RegExp> = {
+  Idle: /idle|stand|breath/,
+  Walk: /walk|walking/,
+  Run: /run|running|sprint/,
+  Turn: /turn|rotate|pivot/
+};
+function playCharacterAnimation(name: string, playbackRate = 1) {
+  // If the GLB uses different clip names, use the closest available locomotion clip.
+  const resolved = characterActions.has(name) ? name
+    : name === 'Run' && characterActions.has('Walk') ? 'Walk'
+    : name === 'Walk' && characterActions.has('Run') ? 'Run'
+    : name === 'Idle' && characterActions.has('Walk') ? 'Walk'
+    : '';
+  if (!resolved) return;
+  const next = characterActions.get(resolved)!;
+  if (activeCharacterAnimation === resolved) {
+    next.setEffectiveTimeScale(playbackRate);
+    return;
+  }
   const previous = characterActions.get(activeCharacterAnimation);
-  previous?.fadeOut(0.16);
-  next.reset().fadeIn(0.16).play();
-  activeCharacterAnimation = name;
+  next.reset().setEffectiveTimeScale(playbackRate).setEffectiveWeight(1).play();
+  if (previous) next.crossFadeFrom(previous, 0.22, true);
+  else next.fadeIn(0.22);
+  activeCharacterAnimation = resolved;
 }
 characterLoader.load(characterUrl, (gltf) => {
   const model = gltf.scene;
@@ -66,10 +82,19 @@ characterLoader.load(characterUrl, (gltf) => {
   player.add(model);
   characterMixer = new THREE.AnimationMixer(gltf.scene);
   for (const clip of gltf.animations) {
-    characterActions.set(clip.name, characterMixer.clipAction(clip));
+    const action = characterMixer.clipAction(clip);
+    action.setLoop(THREE.LoopRepeat, Infinity);
+    action.clampWhenFinished = false;
+    const normalizedName = clip.name.toLowerCase().replace(/[^a-zа-я0-9]/gi, '');
+    characterActions.set(clip.name, action);
+    for (const [role, pattern] of Object.entries(animationAliases)) {
+      if (!characterActions.has(role) && pattern.test(normalizedName)) {
+        characterActions.set(role, action);
+      }
+    }
   }
-  if (characterActions.has('Idle')) playCharacterAnimation('Idle');
-  console.info('Персонаж загружен. Анимации:', [...characterActions.keys()]);
+  playCharacterAnimation('Idle');
+  console.info('Персонаж загружен. Найдены клипы:', gltf.animations.map(clip => clip.name));
 }, undefined, (error) => {
   console.error('Не удалось загрузить анимированную GLB-модель:', error);
   const hint = document.getElementById('hint');
@@ -109,7 +134,9 @@ if (moving) {
     turnAnimationTimer -= dt;
     playCharacterAnimation('Turn');
   } else {
-    playCharacterAnimation(keys.has('shift') ? 'Run' : 'Walk');
+    const sprinting = keys.has('shift');
+    // Match the animation cadence to the character's actual movement speed.
+    playCharacterAnimation(sprinting ? 'Run' : 'Walk', sprinting ? 1.25 : 0.92);
   }
 } else {
   turnAnimationTimer = 0;
