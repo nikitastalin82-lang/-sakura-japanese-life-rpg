@@ -310,9 +310,12 @@ for i, v in enumerate(mesh.data.vertices):
         else:
             nearest = distances[:4]
     else:
-        nearest = distances[:4]
+        # Keep the torso/head/sleeve skinning local. Four-way blending lets
+        # distant joints tug the same cloth panel in different directions,
+        # which looks like stretched, fixed-to-moving geometry in motion.
+        nearest = distances[:2]
 
-    raw = [(name, 1.0 / max(d, height*0.018)**2) for d,name in nearest]
+    raw = [(name, 1.0 / max(d, height*0.025)**2) for d,name in nearest]
     total = sum(w for _,w in raw)
     for name,w in raw:
         groups[name].add([i], w/total, "REPLACE")
