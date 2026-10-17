@@ -67,6 +67,13 @@ if height0 > 0:
 
         # The toe is the forward (+Y) end of the shoe. Estimate its lateral
         # offset from the ankle using the foremost 12% of the selected vertices.
+        # Center the shoe mesh under its own trouser-leg bone chain.
+        # Preserve shoe width and toe direction; translate only its X center.
+        shoe_center_x = sum(v.co.x for v in foot_vertices) / len(foot_vertices)
+        shoe_shift_x = ankle_x - shoe_center_x
+        for v in foot_vertices:
+            v.co.x += shoe_shift_x
+
         ys = sorted(v.co.y for v in foot_vertices)
         toe_threshold = ys[max(0, int(len(ys) * 0.88) - 1)]
         toe_vertices = [v for v in foot_vertices if v.co.y >= toe_threshold]
@@ -82,7 +89,7 @@ if height0 > 0:
             v.co.x = ankle_x + x * ca - y * sa
             v.co.y = ankle_y + x * sa + y * ca
         print("FOOT_TOE_ALIGNMENT", side_sign, round(math.degrees(delta), 2),
-              "vertices", len(foot_vertices), "toe_offset", round(dx / height0, 4), flush=True)
+              "vertices", len(foot_vertices), "toe_offset", round(dx / height0, 4), "center_shift", round(shoe_shift_x / height0, 4), flush=True)
     mesh.data.update()
 
 # Establish dimensions before any region/rig calculations.
