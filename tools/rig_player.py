@@ -111,7 +111,7 @@ for side, side_sign in (("L", 1), ("R", -1)):
     angle = math.atan2(float(axis[0]), float(axis[1]))
     delta = -angle
     ca, sa = math.cos(delta), math.sin(delta)
-    target_x = center.x + side_sign * height0 * 0.055
+    target_x = center.x + side_sign * height0 * 0.075
     for v in shoe_vertices:
         x, y = v.co.x - origin[0], v.co.y - origin[1]
         rx = x*ca - y*sa
