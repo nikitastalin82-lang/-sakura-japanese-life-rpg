@@ -113,6 +113,8 @@ for obj in skinned_meshes:
         axis.normalize()
         foot_rows = []
         all_projection = []
+        distal_bins = [(0.50, 0.75), (0.75, 1.00), (1.00, 1.25), (1.25, 1.75), (1.75, 3.00)]
+        bin_rows = {band: [] for band in distal_bins}
         for vertex in obj.data.vertices:
             point = arm_inverse @ (obj.matrix_world @ vertex.co)
             along = (point - bone.head_local).dot(axis) / length
@@ -126,6 +128,14 @@ for obj in skinned_meshes:
                     sw = membership.weight
             if fw > 0.01:
                 foot_rows.append((along, fw, sw, point.copy(), vertex.index))
+            for band in distal_bins:
+                if band[0] <= along < band[1]:
+                    weights = {}
+                    for membership in vertex.groups:
+                        group_name = obj.vertex_groups[membership.group].name
+                        weights[group_name] = round(membership.weight, 3)
+                    bin_rows[band].append((vertex.index, round(along, 3), weights))
+                    break
         foot_rows.sort(key=lambda r: r[0])
         projections = np.array([r[0] for r in foot_rows], dtype=float) if foot_rows else np.array([])
         if len(projections):
@@ -143,6 +153,7 @@ for obj in skinned_meshes:
               "FOOT_ALONG_QUANTILES", quantiles,
               "FOOT_EXTREMES", [(r[4],round(r[0],3),round(r[1],3),round(r[2],3),
                                   tuple(round(v,3) for v in r[3])) for r in extremes],
+              "DISTAL_BINS", {str(k): {"count": len(v), "samples": v[:12]} for k, v in bin_rows.items()},
               flush=True)
 
 # Create animation clips on the original bones. Fingers and toes remain part
