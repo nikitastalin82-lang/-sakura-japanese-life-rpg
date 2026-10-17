@@ -108,6 +108,40 @@ for obj in skinned_meshes:
               "GROUPS", [(n,round(w,1)) for n,w in dominant], flush=True)
 
 
+
+# Detailed foot influence map: locate cross-leg/torso weights and the shin/foot transition.
+for side, sign in (("L", 1), ("R", -1)):
+    names = [f"foot.{side}", f"shin.{side}", f"thigh.{side}"]
+    print("DIAG_FOOT_BONES", side, [(n,
+        tuple(round(x,5) for x in arm.data.bones[n].head_local),
+        tuple(round(x,5) for x in arm.data.bones[n].tail_local))
+        for n in names], flush=True)
+    obj = skinned_meshes[0]
+    idx = {g.name:g.index for g in obj.vertex_groups}
+    foot_i, shin_i, thigh_i = (idx.get(n,-1) for n in names)
+    rows = []
+    for v in obj.data.vertices:
+        x,y,z = v.co
+        if x*sign < 0.035 or z > -0.45: continue
+        w = {a.group:a.weight for a in v.groups}
+        wf = w.get(foot_i,0.0); ws = w.get(shin_i,0.0); wt = w.get(thigh_i,0.0)
+        if wf+ws+wt < 0.02: continue
+        rows.append((z,wf,ws,wt,w))
+    if rows:
+        zmin=min(r[0] for r in rows); zmax=max(r[0] for r in rows)
+        print("DIAG_FOOT_REGION", side, "VERTS",len(rows),"Z",round(zmin,4),round(zmax,4),flush=True)
+        for bi in range(8):
+            lo=zmin+(zmax-zmin)*bi/8; hi=zmin+(zmax-zmin)*(bi+1)/8
+            group=[r for r in rows if lo <= r[0] <= hi]
+            if not group: continue
+            means=[sum(r[k] for r in group)/len(group) for k in (1,2,3)]
+            top=collections.Counter()
+            for r in group:
+                for gi,weight in r[4].items():
+                    top[obj.vertex_groups[gi].name]+=weight
+            print("DIAG_FOOT_BIN",side,bi,"COUNT",len(group),"MEAN_FOOT_SHIN_THIGH",
+                  tuple(round(v,3) for v in means),"TOP",[(n,round(w,1)) for n,w in top.most_common(6)],flush=True)
+
 # Compare skin weights at coincident triangle-soup vertices. These duplicates
 # should deform identically across polygon boundaries, including UV seams.
 for obj in skinned_meshes:
