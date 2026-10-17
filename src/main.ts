@@ -32,7 +32,7 @@ const characterLoader = new GLTFLoader();
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
 characterLoader.setDRACOLoader(dracoLoader);
-const characterUrl = 'https://raw.githubusercontent.com/nikitastalin82-lang/-sakura-japanese-life-rpg/main/public/models/player-rigged.glb';
+const characterUrl = `${import.meta.env.BASE_URL}models/player-rigged.glb`;
 let characterMixer: THREE.AnimationMixer | null = null;
 const characterActions = new Map<string, THREE.AnimationAction>();
 let activeCharacterAnimation = '';
