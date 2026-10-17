@@ -176,17 +176,17 @@ for lo, hi in ((0.10,0.18),(0.18,0.25),(0.25,0.35),(0.35,0.42)):
     peaks = np.argsort(hist)[-12:][::-1]
     print("TROUSER_X_HIST", lo, hi, [(round(float((edges[k]+edges[k+1])*0.5/height_diag),4), int(hist[k])) for k in peaks], flush=True)
 
-# Move each leg chain inward from the earlier positions so the bones sit
-# closer to the middle of each wide trouser panel, away from the outer sides.
+# Keep the leg chains closer together: the previous 0.14-height offset
+# placed the visible skeleton too far outside the actual leg columns.
+# The same measured centers are used by both the bones and weight assignment.
 height = maxv.z - minv.z
-# Use the paired lower-trouser histogram peaks as the leg centerlines.
-# The previous smaller offset pulled both bones toward the robe center.
+LEG_CENTER_OFFSET = 0.095
 leg_centers = {
-    "L": center.x + 0.14 * height,
-    "R": center.x - 0.14 * height,
+    "L": center.x + LEG_CENTER_OFFSET * height,
+    "R": center.x - LEG_CENTER_OFFSET * height,
 }
 print("LEG_CENTER_MEASURED", {k: round(v,5) for k,v in leg_centers.items()}, flush=True)
-print("LEG_CENTER_TROUSER_OFFSET", 0.14, flush=True)
+print("LEG_CENTER_TROUSER_OFFSET", LEG_CENTER_OFFSET, flush=True)
 
 height = maxv.z - minv.z
 if height <= 0: raise RuntimeError("Character has no vertical height on Blender Z axis")
