@@ -43,12 +43,31 @@ minv = Vector((min(v.x for v in coords), min(v.y for v in coords), min(v.z for v
 maxv = Vector((max(v.x for v in coords), max(v.y for v in coords), max(v.z for v in coords)))
 center = (minv + maxv) * 0.5
 
+# Determine each trouser-leg center before adjusting the shoes.
+height0 = maxv.z - minv.z
+leg_centers = {}
+for side, sign in (("L", 1), ("R", -1)):
+    vals = []
+    for z0, z1 in ((0.28, 0.36), (0.36, 0.44), (0.44, 0.51)):
+        xs = [v.co.x for v in mesh.data.vertices
+              if z0 <= (v.co.z - minv.z) / height0 <= z1
+              and abs((v.co.x - center.x) / height0) < 0.22
+              and ((v.co.x - center.x) * sign) > height0 * 0.012
+              and abs((v.co.y - center.y) / height0) < 0.19]
+        if len(xs) >= 20:
+            xs.sort()
+            vals.append(xs[len(xs)//2])
+    if not vals:
+        raise RuntimeError("Could not locate trouser center for leg " + side)
+    leg_centers[side] = sum(vals) / len(vals)
+    print("TROUSER_CENTER_PRE", side, round((leg_centers[side]-center.x)/height0,5), flush=True)
+
 # Align each foot from its toe direction, not PCA's ambiguous principal axis.
 # The previous PCA included robe-hem vertices and could select the shoe width.
 height0 = maxv.z - minv.z
 if height0 > 0:
     for side_sign in (1, -1):
-        ankle_x = center.x + side_sign * height0 * 0.035
+        ankle_x = leg_centers['L' if side_sign == 1 else 'R']
         ankle_y = center.y
         ankle_z = minv.z + height0 * 0.075
 
