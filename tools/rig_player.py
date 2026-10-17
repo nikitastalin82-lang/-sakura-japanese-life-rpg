@@ -1,4 +1,4 @@
-import bpy, os
+import bpy, os, collections
 from mathutils import Vector
 
 src = os.environ.get("INPUT_GLB", "player-rigged-beautified.glb")
