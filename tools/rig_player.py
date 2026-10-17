@@ -275,32 +275,51 @@ for i, v in enumerate(mesh.data.vertices):
         distances = [(height, "pelvis")]
     distances.sort()
 
-    # Explicitly bind the lower-leg columns to their own leg chain.
-    # Nearest-four across the entire skeleton allowed pelvis/spine and the
-    # opposite limb to dilute the trouser weights, so use a side-local chain
-    # whenever a vertex is close to that leg's measured centerline.
+    # Explicitly bind limb geometry to its own chain. The upper-thigh band
+    # starts above 48% of model height, so include it through 60%; otherwise
+    # its upper half incorrectly stays attached to the torso.
     leg_side = None
-    if z < 0.48:
+    if z < 0.60:
         for side, side_sign in (("L", 1), ("R", -1)):
             leg_x = (leg_centers[side] - center.x) / height
             if (x - leg_x) * side_sign >= -0.035:
                 leg_side = side
                 break
 
-    if leg_side is not None:
+    arm_side = None
+    if 0.30 <= z <= 0.86 and abs(x) >= 0.045:
+        arm_side = "L" if x > 0 else "R"
+
+    if arm_side is not None:
         chain = []
         for name, a, b in segments:
-            if not name.startswith(("thigh", "shin", "foot")):
-                continue
-            if not name.endswith("." + leg_side):
+            if not name.endswith("." + arm_side) or not name.startswith(("upper_arm", "forearm", "hand")):
                 continue
             ab = b-a
             t = max(0.0, min(1.0, (point-a).dot(ab) / max(ab.length_squared, 1e-9)))
             d = (point - (a + t*ab)).length
-            # Do not let the foot bone pull trouser vertices above the ankle.
+            if name.startswith("hand") and z > 0.48:
+                continue
+            if name.startswith("forearm") and z > 0.72:
+                continue
+            if name.startswith("upper_arm") and z < 0.48:
+                continue
+            chain.append((d, name))
+        if chain:
+            chain.sort()
+            nearest = chain[:2]
+        else:
+            nearest = distances[:2]
+    elif leg_side is not None:
+        chain = []
+        for name, a, b in segments:
+            if not name.startswith(("thigh", "shin", "foot")) or not name.endswith("." + leg_side):
+                continue
+            ab = b-a
+            t = max(0.0, min(1.0, (point-a).dot(ab) / max(ab.length_squared, 1e-9)))
+            d = (point - (a + t*ab)).length
             if name.startswith("foot") and z > 0.12:
                 continue
-            # Shin controls the lower trouser; thigh controls the upper section.
             if name.startswith("shin") and z > 0.43:
                 continue
             chain.append((d, name))
@@ -308,7 +327,7 @@ for i, v in enumerate(mesh.data.vertices):
             chain.sort()
             nearest = chain[:2]
         else:
-            nearest = distances[:4]
+            nearest = distances[:2]
     elif abs(x) < 0.115 and 0.34 <= z <= 0.88:
         # The middle of the robe must be driven by the torso chain, not by
         # distant arm/leg joints. Blend pelvis, spine and chest so the whole
