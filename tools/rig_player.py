@@ -129,8 +129,41 @@ for side, side_sign in (("L", 1), ("R", -1)):
           "eigenvalues", [round(float(x),7) for x in vals],
           "long_axis_xy", [round(float(x),6) for x in axis], flush=True)
 
-# Preserve original footwear and robe vertex positions. The previous broad
-# low-height selection deformed connected robe/leg geometry and is reverted.
+# Correct only the lower footwear geometry using measured mirrored PCA axes.
+# Full correction below 4% of character height, smoothly fading to zero by 8%.
+for side, side_sign, angle_deg in (("L", 1, -19.0), ("R", -1, 19.0)):
+    shoe = [v for v in mesh.data.vertices
+            if 0.0 <= (v.co.z-minv.z)/height_diag < 0.04
+            and (v.co.x-center.x)*side_sign > height_diag*0.025]
+    if len(shoe) < 1000:
+        raise RuntimeError(f"Footwear selection too small for {side}: {len(shoe)}")
+    pivot_x = sum(v.co.x for v in shoe) / len(shoe)
+    pivot_y = sum(v.co.y for v in shoe) / len(shoe)
+    angle = math.radians(angle_deg)
+    cs, sn = math.cos(angle), math.sin(angle)
+    changed = 0
+    for v in mesh.data.vertices:
+        zf = (v.co.z-minv.z)/height_diag
+        if zf < 0.04 or zf >= 0.08:
+            continue
+        if (v.co.x-center.x)*side_sign <= height_diag*0.025:
+            continue
+        fade = max(0.0, min(1.0, (0.08-zf)/0.04))
+        a = angle * fade
+        ca, sa = math.cos(a), math.sin(a)
+        dx, dy = v.co.x-pivot_x, v.co.y-pivot_y
+        v.co.x = pivot_x + dx*ca - dy*sa
+        v.co.y = pivot_y + dx*sa + dy*ca
+        changed += 1
+    for v in shoe:
+        dx, dy = v.co.x-pivot_x, v.co.y-pivot_y
+        v.co.x = pivot_x + dx*cs - dy*sn
+        v.co.y = pivot_y + dx*sn + dy*cs
+    print("FOOTWEAR_ROTATED", side, "degrees", angle_deg,
+          "core_vertices", len(shoe), "blend_vertices", changed, flush=True)
+
+# Update mesh after the controlled footwear-only correction.
+mesh.data.update()
 
 mesh.data.update()
 
