@@ -157,8 +157,7 @@ for obj in skinned_meshes:
               flush=True)
 
 # Inspect the outer little-toe edge separately. In this model the toe points
-# toward negative local Y (opposite the foot bone tail direction), so do not
-# use the bone's positive longitudinal axis to identify the toe.
+# along positive local Y, matching the foot bone's head-to-tail direction.
 for obj in skinned_meshes:
     arm_inverse = arm.matrix_world.inverted()
     for side, sign in (("L", 1), ("R", -1)):
@@ -168,7 +167,7 @@ for obj in skinned_meshes:
             point = arm_inverse @ (obj.matrix_world @ vertex.co)
             lateral = sign * (point.x - bone.head_local.x)
             # Toe/forefoot footprint, outer half toward the little toe.
-            if point.y >= -0.035 or point.z >= -0.70 or lateral <= 0.015:
+            if point.y <= 0.035 or point.z >= -0.70 or lateral <= 0.015:
                 continue
             weights = {}
             for membership in vertex.groups:
