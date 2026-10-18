@@ -156,8 +156,35 @@ for obj in skinned_meshes:
               "DISTAL_BINS", {str(k): {"count": len(v), "samples": v[:12]} for k, v in bin_rows.items()},
               flush=True)
 
+# Repair the outer forefoot/shoe edge. The foot's toe points toward negative
+# local Y in this mesh; the outer edge is away from the character center on X.
+# Diagnostics found hundreds of vertices in this region weighted to pelvis,
+# spine and chest instead of the corresponding foot. That makes the shoe corner
+# lag behind and stretch during walking. Reassign only this tightly bounded
+# lower-forefoot region to its own foot bone.
+for obj in skinned_meshes:
+    arm_inverse = arm.matrix_world.inverted()
+    for side, sign in (("L", 1), ("R", -1)):
+        bone = arm.data.bones[f"foot.{side}"]
+        foot_group = obj.vertex_groups.get(f"foot.{side}")
+        if foot_group is None:
+            raise RuntimeError(f"Missing foot group for {side}")
+        repaired = 0
+        for vertex in obj.data.vertices:
+            point = arm_inverse @ (obj.matrix_world @ vertex.co)
+            lateral = sign * (point.x - bone.head_local.x)
+            if point.y >= -0.035 or point.z >= -0.70 or lateral <= 0.015:
+                continue
+            # Remove inappropriate body/leg influences on this isolated shoe edge.
+            for membership in list(vertex.groups):
+                if membership.group != foot_group.index:
+                    obj.vertex_groups[membership.group].remove([vertex.index])
+            foot_group.add([vertex.index], 1.0, "REPLACE")
+            repaired += 1
+        print("OUTER_FOOT_WEIGHT_REPAIR", side, "VERTICES", repaired, flush=True)
+
 # Inspect the outer little-toe edge separately. In this model the toe points
-# along positive local Y, matching the foot bone's head-to-tail direction.
+# toward negative local Y, opposite the foot bone's head-to-tail direction.
 for obj in skinned_meshes:
     arm_inverse = arm.matrix_world.inverted()
     for side, sign in (("L", 1), ("R", -1)):
@@ -167,7 +194,7 @@ for obj in skinned_meshes:
             point = arm_inverse @ (obj.matrix_world @ vertex.co)
             lateral = sign * (point.x - bone.head_local.x)
             # Toe/forefoot footprint, outer half toward the little toe.
-            if point.y <= 0.035 or point.z >= -0.70 or lateral <= 0.015:
+            if point.y >= -0.035 or point.z >= -0.70 or lateral <= 0.015:
                 continue
             weights = {}
             for membership in vertex.groups:
