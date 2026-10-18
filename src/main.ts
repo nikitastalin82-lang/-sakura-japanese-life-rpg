@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import './style.css';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML = `
@@ -29,10 +28,8 @@ const player = new THREE.Group();
 player.position.set(0,0,4);
 scene.add(player);
 const characterLoader = new GLTFLoader();
-const dracoLoader = new DRACOLoader();
-dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
-characterLoader.setDRACOLoader(dracoLoader);
-const characterUrl = `${import.meta.env.BASE_URL}models/player-rigged.glb`;
+// Cache-bust the model URL so mobile browsers do not keep an older GLB after deployment.
+const characterUrl = `${import.meta.env.BASE_URL}models/player-rigged.glb?v=mobile-fix-20261018`;
 let characterMixer: THREE.AnimationMixer | null = null;
 const characterActions = new Map<string, THREE.AnimationAction>();
 let activeCharacterAnimation = '';
@@ -98,7 +95,7 @@ characterLoader.load(characterUrl, (gltf) => {
   playCharacterAnimation('Idle');
   console.info('Персонаж загружен. Найдены клипы:', gltf.animations.map(clip => clip.name));
 }, undefined, (error) => {
-  console.error('Не удалось загрузить анимированную GLB-модель:', error);
+  console.error('Не удалось загрузить анимированную GLB-модель:', characterUrl, error);
   const hint = document.getElementById('hint');
   if (hint) hint.textContent = 'Анимированная модель пока не загрузилась. Проверь публикацию player-rigged.glb.';
 });
@@ -115,19 +112,20 @@ addEventListener('keydown',e=>{const key=keyName(e);if(['w','a','s','d','arrowup
 addEventListener('keyup',e=>keys.delete(keyName(e)));
 addEventListener('blur',()=>keys.clear());
 let joyX=0,joyY=0,joyPointer:number|null=null;
-const joystick=document.getElementById('joystick')!,stick=document.getElementById('stick')!;
+const joystickZone=document.querySelector<HTMLElement>('.joystick-zone')!,joystick=document.getElementById('joystick')!,stick=document.getElementById('stick')!;
 function updateJoystick(e:PointerEvent){const r=joystick.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let x=e.clientX-cx,y=e.clientY-cy;const max=r.width*.34,len=Math.hypot(x,y);if(len>max){x=x/len*max;y=y/len*max}joyX=x/max;joyY=y/max;stick.style.transform=`translate(${x}px,${y}px)`}
-joystick.addEventListener('pointerdown',e=>{e.preventDefault();joyPointer=e.pointerId;joystick.setPointerCapture(e.pointerId);updateJoystick(e)});
-joystick.addEventListener('pointermove',e=>{if(e.pointerId===joyPointer){e.preventDefault();updateJoystick(e)}});
+joystickZone.addEventListener('pointerdown',e=>{e.preventDefault();if(joyPointer!==null)return;joyPointer=e.pointerId;joystickZone.setPointerCapture(e.pointerId);updateJoystick(e)});
+joystickZone.addEventListener('pointermove',e=>{if(e.pointerId===joyPointer){e.preventDefault();updateJoystick(e)}});
 function releaseJoystick(e:PointerEvent){if(e.pointerId!==joyPointer)return;joyPointer=null;joyX=0;joyY=0;stick.style.transform='translate(0,0)'}
-joystick.addEventListener('pointerup',releaseJoystick);joystick.addEventListener('pointercancel',releaseJoystick);
+joystickZone.addEventListener('pointerup',releaseJoystick);joystickZone.addEventListener('pointercancel',releaseJoystick);joystickZone.addEventListener('lostpointercapture',releaseJoystick);
 let firstPerson=false;function toggleCamera(){firstPerson=!firstPerson;document.getElementById('hint')!.textContent=firstPerson?'Мышь — обзор · C — камера от третьего лица · Esc — отпустить':'WASD — движение · мышь — обзор · клик — захват мыши · Esc — отпустить'}
 document.getElementById('camera')!.onclick=toggleCamera;document.getElementById('interact')!.onclick=interact;
 const places=[{name:'Школа',x:-13,z:-13,desc:'Школа открыта. Уроки начинаются в 08:30.'},{name:'Конбини',x:15,z:-12,desc:'Ты зашёл в конбини. Здесь можно купить перекус.'},{name:'Дом',x:-15,z:15,desc:'Ты дома. Можно немного отдохнуть.'},{name:'Станция',x:15,z:16,desc:'Расписание поездов скоро появится.'}];
 function interact(){const p=places.find(v=>Math.hypot(player.position.x-v.x,player.position.z-v.z)<6);const el=document.getElementById('interaction')!;el.textContent=p?p.desc:'Рядом нет места для взаимодействия.';el.style.display='block';setTimeout(()=>el.style.display='none',2600)}
 const saved=localStorage.getItem('sakura-position');if(saved){try{const p=JSON.parse(saved);player.position.set(p.x,0,p.z)}catch{}}
 let last=performance.now(),gameMinutes=480;const target=new THREE.Vector3();
-function animate(now:number){requestAnimationFrame(animate);const dt=Math.min((now-last)/1000,.05);last=now;let dx=joyX,dz=joyY;if(keys.has('w')||keys.has('arrowup'))dz+=1;if(keys.has('s')||keys.has('arrowdown'))dz-=1;if(keys.has('a')||keys.has('arrowleft'))dx+=1;if(keys.has('d')||keys.has('arrowright'))dx-=1;const moving=Math.abs(dx)+Math.abs(dz)>.08;if(moving){const l=Math.hypot(dx,dz);if(l>1){dx/=l;dz/=l;}const sprinting=keys.has('shift');const moveSpeed=(sprinting?5:2.2)*Math.min(1,Math.hypot(dx,dz));const worldX=dx*Math.cos(viewYaw)+dz*Math.sin(viewYaw),worldZ=-dx*Math.sin(viewYaw)+dz*Math.cos(viewYaw);player.position.x+=worldX*moveSpeed*dt;player.position.z+=worldZ*moveSpeed*dt;player.rotation.y=Math.atan2(worldX,worldZ);player.position.x=THREE.MathUtils.clamp(player.position.x,-43,43);player.position.z=THREE.MathUtils.clamp(player.position.z,-43,43)}
+function animate(now:number){requestAnimationFrame(animate);const dt=Math.min((now-last)/1000,.05);last=now;// Screen coordinates grow right/down, while game controls use left/forward as positive.
+let dx=-joyX,dz=-joyY;if(keys.has('w')||keys.has('arrowup'))dz+=1;if(keys.has('s')||keys.has('arrowdown'))dz-=1;if(keys.has('a')||keys.has('arrowleft'))dx+=1;if(keys.has('d')||keys.has('arrowright'))dx-=1;const moving=Math.abs(dx)+Math.abs(dz)>.08;if(moving){const l=Math.hypot(dx,dz);if(l>1){dx/=l;dz/=l;}const sprinting=keys.has('shift');const moveSpeed=(sprinting?5:2.2)*Math.min(1,Math.hypot(dx,dz));const worldX=dx*Math.cos(viewYaw)+dz*Math.sin(viewYaw),worldZ=-dx*Math.sin(viewYaw)+dz*Math.cos(viewYaw);player.position.x+=worldX*moveSpeed*dt;player.position.z+=worldZ*moveSpeed*dt;player.rotation.y=Math.atan2(worldX,worldZ);player.position.x=THREE.MathUtils.clamp(player.position.x,-43,43);player.position.z=THREE.MathUtils.clamp(player.position.z,-43,43)}
 if (moving) {
   const yawDelta = Math.atan2(Math.sin(player.rotation.y-previousPlayerYaw), Math.cos(player.rotation.y-previousPlayerYaw));
   if (Math.abs(yawDelta) > 0.9 && turnAnimationTimer <= 0 && characterActions.has('Turn')) turnAnimationTimer = 0.22;
