@@ -274,8 +274,7 @@ bpy.ops.export_scene.gltf(
     filepath=out, export_format="GLB", use_selection=False,
     export_skins=True, export_animations=True,
     export_animation_mode="ACTIONS", export_apply=False,
-    export_yup=True, export_draco_mesh_compression_enable=True,
-    export_draco_mesh_compression_level=6
+    export_yup=True, export_draco_mesh_compression_enable=False
 )
 if not os.path.isfile(out) or os.path.getsize(out) < 1024:
     raise RuntimeError("Rigged GLB export is missing or unexpectedly small")
