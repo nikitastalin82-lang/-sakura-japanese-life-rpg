@@ -29,7 +29,7 @@ player.position.set(0,0,4);
 scene.add(player);
 const characterLoader = new GLTFLoader();
 // Cache-bust the model URL so mobile browsers do not keep an older GLB after deployment.
-const characterUrl = `${import.meta.env.BASE_URL}models/player-rigged.glb?v=mobile-fix-20261018`;
+const characterUrl = `${import.meta.env.BASE_URL}models/player-rigged.glb?v=fa3844dd69cd222a`;
 let characterMixer: THREE.AnimationMixer | null = null;
 const characterActions = new Map<string, THREE.AnimationAction>();
 let activeCharacterAnimation = '';
@@ -92,8 +92,20 @@ characterLoader.load(characterUrl, (gltf) => {
       }
     }
   }
-  playCharacterAnimation('Idle');
-  console.info('Персонаж загружен. Найдены клипы:', gltf.animations.map(clip => clip.name));
+  if (gltf.animations.length === 0) {
+    console.error('GLB загружен без анимаций:', characterUrl);
+    const hint = document.getElementById('hint');
+    if (hint) hint.textContent = 'Модель загружена, но в файле нет анимаций.';
+  } else {
+    // Keep a working animation even if a future export uses unexpected clip names.
+    if (!characterActions.has('Idle') && !characterActions.has('Walk')) {
+      const firstClip = gltf.animations[0];
+      characterActions.set('Idle', characterMixer.clipAction(firstClip));
+      characterActions.set('Walk', characterMixer.clipAction(firstClip));
+    }
+    playCharacterAnimation('Idle');
+  }
+  console.info('Персонаж загружен. Найдены клипы:', gltf.animations.map(clip => clip.name), 'actions:', [...characterActions.keys()]);
 }, undefined, (error) => {
   console.error('Не удалось загрузить анимированную GLB-модель:', characterUrl, error);
   const hint = document.getElementById('hint');
