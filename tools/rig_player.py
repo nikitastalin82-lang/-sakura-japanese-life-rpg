@@ -156,66 +156,44 @@ for obj in skinned_meshes:
               "DISTAL_BINS", {str(k): {"count": len(v), "samples": v[:12]} for k, v in bin_rows.items()},
               flush=True)
 
-# Repair the outer forefoot/shoe edge. The foot's toe points toward negative
-# local Y in this mesh; the outer edge is away from the character center on X.
-# Diagnostics found hundreds of vertices in this region weighted to pelvis,
-# spine and chest instead of the corresponding foot. That makes the shoe corner
-# lag behind and stretch during walking. Reassign only this tightly bounded
-# lower-forefoot region to its own foot bone.
+# Diagnose the lateral forefoot from the actual imported mesh coordinates.
+# Do not alter these weights until the coordinate and influence report confirms
+# which vertices form the little-toe edge. The foot bone runs from ankle toward
+# the forefoot along its measured head-to-tail vector; no guessed world axis.
 for obj in skinned_meshes:
     arm_inverse = arm.matrix_world.inverted()
     for side, sign in (("L", 1), ("R", -1)):
         bone = arm.data.bones[f"foot.{side}"]
-        foot_group = obj.vertex_groups.get(f"foot.{side}")
-        if foot_group is None:
-            raise RuntimeError(f"Missing foot group for {side}")
-        repaired = 0
-        for vertex in obj.data.vertices:
-            point = arm_inverse @ (obj.matrix_world @ vertex.co)
-            lateral = sign * (point.x - bone.head_local.x)
-            if point.y >= -0.035 or point.z >= -0.70 or lateral <= 0.015:
-                continue
-            # Remove inappropriate body/leg influences on this isolated shoe edge.
-            for membership in list(vertex.groups):
-                if membership.group != foot_group.index:
-                    obj.vertex_groups[membership.group].remove([vertex.index])
-            foot_group.add([vertex.index], 1.0, "REPLACE")
-            repaired += 1
-        print("OUTER_FOOT_WEIGHT_REPAIR", side, "VERTICES", repaired, flush=True)
-
-# Inspect the outer little-toe edge separately. In this model the toe points
-# toward negative local Y, opposite the foot bone's head-to-tail direction.
-for obj in skinned_meshes:
-    arm_inverse = arm.matrix_world.inverted()
-    for side, sign in (("L", 1), ("R", -1)):
-        bone = arm.data.bones[f"foot.{side}"]
+        foot_group = obj.vertex_groups[f"foot.{side}"]
         rows = []
         for vertex in obj.data.vertices:
             point = arm_inverse @ (obj.matrix_world @ vertex.co)
             lateral = sign * (point.x - bone.head_local.x)
-            # Toe/forefoot footprint, outer half toward the little toe.
-            if point.y >= -0.035 or point.z >= -0.70 or lateral <= 0.015:
+            # Keep the whole lower forefoot in the report; use the actual
+            # bone direction rather than assuming positive/negative Y.
+            along = (point - bone.head_local).dot((bone.tail_local - bone.head_local).normalized())
+            if lateral <= 0.015 or along < -0.15 or along > 1.8:
                 continue
-            weights = {}
-            for membership in vertex.groups:
-                name = obj.vertex_groups[membership.group].name
-                weights[name] = membership.weight
-            foot_w = weights.get(f"foot.{side}", 0.0)
-            shin_w = weights.get(f"shin.{side}", 0.0)
-            rows.append((vertex.index, lateral, point.y, point.z, foot_w, shin_w,
-                         sorted(weights.items(), key=lambda item: item[1], reverse=True)[:4]))
+            weights = {obj.vertex_groups[m.group].name: m.weight for m in vertex.groups}
+            rows.append((vertex.index, along, lateral, point.copy(), weights))
         if rows:
-            avg_foot = sum(r[4] for r in rows) / len(rows)
-            no_foot = sum(1 for r in rows if r[4] < 0.05)
-            print("OUTER_TOE_DIAGNOSTIC", side, "VERTICES", len(rows),
-                  "AVG_FOOT_WEIGHT", round(avg_foot, 4),
-                  "NO_FOOT_WEIGHT", no_foot,
-                  "SAMPLES", [(r[0], round(r[1],3), round(r[2],3), round(r[3],3),
-                               round(r[4],3), round(r[5],3),
-                               [(n, round(w,3)) for n,w in r[6]]) for r in rows[:30]],
-                  flush=True)
+            rows.sort(key=lambda r: r[1])
+            forefoot = [r for r in rows if r[1] >= 0.45]
+            selected = forefoot if forefoot else rows
+            ys = [r[3].y for r in selected]
+            zs = [r[3].z for r in selected]
+            print("LATERAL_FOREFOOT_DIAGNOSTIC", side,
+                  "CANDIDATES", len(rows), "DISTAL_CANDIDATES", len(forefoot),
+                  "Y_RANGE", (round(min(ys),4), round(max(ys),4)),
+                  "Z_RANGE", (round(min(zs),4), round(max(zs),4)),
+                  "DISTAL_SAMPLES", [
+                      (r[0], round(r[1],3), round(r[2],3),
+                       tuple(round(v,3) for v in r[3]),
+                       [(n, round(w,3)) for n,w in sorted(r[4].items(), key=lambda kv: kv[1], reverse=True)[:4]])
+                      for r in sorted(selected, key=lambda r: r[1])[-24:]
+                  ], flush=True)
         else:
-            print("OUTER_TOE_DIAGNOSTIC", side, "NO_VERTICES_IN_REGION", flush=True)
+            print("LATERAL_FOREFOOT_DIAGNOSTIC", side, "NO_CANDIDATES", flush=True)
 
 # Create animation clips on the original bones. Fingers and toes remain part
 # of their correctly weighted original hand/foot regions instead of being
