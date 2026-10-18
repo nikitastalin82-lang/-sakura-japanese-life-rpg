@@ -29,7 +29,7 @@ player.position.set(0,0,4);
 scene.add(player);
 const characterLoader = new GLTFLoader();
 // Cache-bust the model URL so mobile browsers do not keep an older GLB after deployment.
-const characterUrl = `${import.meta.env.BASE_URL}models/player-rigged.glb?v=15354847d818fd95`;
+const characterUrl = `${import.meta.env.BASE_URL}models/player-rigged.glb?v=20261018-mobile-refresh-2`;
 let characterMixer: THREE.AnimationMixer | null = null;
 const characterActions = new Map<string, THREE.AnimationAction>();
 let activeCharacterAnimation = '';
